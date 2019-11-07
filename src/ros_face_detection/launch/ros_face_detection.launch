@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find pylon_camera)/launch/pylon_camera_node.launch" />
+  <node name="ros_face_detection" pkg="ros_face_detection" type="main.py" />
+</launch>

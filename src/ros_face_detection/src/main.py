@@ -14,19 +14,15 @@ from cv_bridge import CvBridge, CvBridgeError
 class image_converter:
 
   def __init__(self):
-    self.image_pub = rospy.Publisher("face_detection",Image,queue_size = 10)
+    self.image_pub = rospy.Publisher("/face_detection/image_raw",Image,queue_size = 10)
     self.bridge = CvBridge()
-    self.image_sub = rospy.Subscriber("/pylon_camera_node/image_raw", Image,self.callback)
+    self.image_sub = rospy.Subscriber("/webcam/image_raw", Image,self.callback)
 
   def callback(self,data):
     try:
       cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
     except CvBridgeError as e:
       print(e)
-
-    (rows, cols, channels) = cv_image.shape
-    if cols > 60 and rows > 60 :
-      cv2.circle(cv_image, (50, 50), 10, 255)
 
     gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
@@ -45,11 +41,11 @@ class image_converter:
     for (x, y, w, h) in faces:
         cv2.rectangle(cv_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
         cropped_image = cv_image[y: y + h / 3, x: x + w]
-        cv2.imshow("Cropped", cropped_image)
-        cv2.waitKey(3)
+        # cv2.imshow("Cropped", cropped_image)
+        # cv2.waitKey(3)
 
-    # cv2.imshow("Image window", cv_image)
-    # cv2.waitKey(3)
+    cv2.imshow("Image window", cv_image)
+    cv2.waitKey(3)
 
     try:
       self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))

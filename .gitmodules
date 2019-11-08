@@ -1,0 +1,9 @@
+[submodule "src/pylon-ros-camera"]
+	path = src/pylon-ros-camera
+	url = https://github.com/basler/pylon-ros-camera
+[submodule "src/dragandbot_common"]
+	path = src/dragandbot_common
+	url = https://github.com/dragandbot/dragandbot_common.git
+[submodule "src/video_stream_opencv"]
+	path = src/video_stream_opencv
+	url = git@github.com:ros-drivers/video_stream_opencv.git

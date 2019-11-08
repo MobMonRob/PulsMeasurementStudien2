@@ -1,5 +1,4 @@
- 
-# Created by https://www.gitignore.io/api/ros,python,pycharm,visualstudio
+ # Created by https://www.gitignore.io/api/ros,python,pycharm,visualstudio
 # Edit at https://www.gitignore.io/?templates=ros,python,pycharm,visualstudio
 
 ### PyCharm ###
@@ -594,3 +593,4 @@ MigrationBackup/
 
 # End of https://www.gitignore.io/api/ros,python,pycharm,visualstudio
 
+.idea/*

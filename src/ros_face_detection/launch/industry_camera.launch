@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find pylon_camera)/launch/pylon_camera_node.launch" />
+    <include file="$(find ros_face_detection)/launch/ros_face_detection.launch" />
+</launch>

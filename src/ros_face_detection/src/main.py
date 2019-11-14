@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import Image
 
-import roslib
-
-import sys
-import rospy
 import cv2
 import os
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
+import roslib
+import rospy
+import sys
 
 roslib.load_manifest('ros_face_detection')
 

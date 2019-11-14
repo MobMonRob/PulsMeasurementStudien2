@@ -2,6 +2,7 @@
 from __future__ import print_function
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
+from pulse_measure import PulseMeasurement
 
 import cv2
 import os
@@ -18,6 +19,7 @@ class ImageConverter:
         self.image_pub = rospy.Publisher("/face_detection/image_raw", Image, queue_size=10)
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber("/webcam/image_raw", Image, self.callback)
+        self.pulse_processor = PulseMeasurement()
 
     def callback(self, data):
         try:

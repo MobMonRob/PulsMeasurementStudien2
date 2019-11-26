@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find face_detection)/launch/idustry_camera.launch" />
+    <include file="$(find legacy_measurement)/launch/legacy_measurement.launch">
+        <arg name="topic" value="/face_detection/image_raw" />
+    </include>
+</launch>

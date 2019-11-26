@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="topic" default="/face_detection/image_raw" />
+    <node pkg="legacy_measurement" type="main.py" name="legacy_measurement" output="screen">
+        <param name="topic" type="string" value="$(arg topic)" />
+    </node>
+</launch>

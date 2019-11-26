@@ -83,34 +83,6 @@ def interpret(data):
     return res
 
 
-def get_ble_hr_mac():
-    """
-    Scans BLE devices and returs the address of the first device found.
-    """
-
-    while 1:
-        print("Trying to find a BLE device")
-        hci = pexpect.spawn("hcitool lescan")
-        try:
-            hci.expect("([0-9A-F]{2}[:-]){5}([0-9A-F]{2})", timeout=20)
-            addr = hci.match.group(0)
-            hci.close()
-            break
-
-        except pexpect.TIMEOUT:
-            time.sleep(20)
-            continue
-
-        except KeyboardInterrupt:
-            print("Received keyboard interrupt. Quitting cleanly.")
-            hci.close()
-            return None
-
-    # We wait for the 'hcitool lescan' to finish
-    time.sleep(1)
-    return addr
-
-
 def main(addr=None, gatttool="gatttool", hr_handle=None, debug_gatttool=False):
     """
     main routine to which orchestrates everything
@@ -124,8 +96,9 @@ def main(addr=None, gatttool="gatttool", hr_handle=None, debug_gatttool=False):
     msg_to_publish = pulse()
 
     if addr is None:
-        # In case no address has been provided, we scan to find any BLE devices
-        addr = get_ble_hr_mac()
+        # A mac address has to be provided as command line argument
+        log.error("MAC address of polar H7 has not been provided")
+        return
 
     hr_ctl_handle = None
     retry = True

@@ -1,4 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-  <node name="ros_face_detection" pkg="ros_face_detection" type="main.py" />
-</launch>

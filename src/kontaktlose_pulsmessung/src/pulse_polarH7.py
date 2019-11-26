@@ -39,7 +39,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Bluetooth heart rate monitor data logger")
     parser.add_argument("-m", metavar='MAC', type=str, help="MAC address of BLE device (default: auto-discovery)")
     parser.add_argument("-g", metavar='PATH', type=str, help="gatttool path (default: system available)", default="gatttool")
-    parser.add_argument("-H", metavar='HR_HANDLE', type=str, help="Gatttool handle used for HR notifications (default: none)")
 
     return parser.parse_args()
 
@@ -83,7 +82,7 @@ def interpret(data):
     return res
 
 
-def main(addr=None, gatttool="gatttool", hr_handle=None):
+def main(addr=None, gatttool="gatttool"):
     """
     main routine to which orchestrates everything
     """
@@ -100,6 +99,7 @@ def main(addr=None, gatttool="gatttool", hr_handle=None):
         log.error("MAC address of polar H7 has not been provided")
         return
 
+    hr_handle = None
     hr_ctl_handle = None
     retry = True
     while retry:
@@ -130,30 +130,28 @@ def main(addr=None, gatttool="gatttool", hr_handle=None):
 
         print("Connected to " + addr)
 
+        # We determine which handle we should read for getting the heart rate
+        # measurement characteristic.
+        gt.sendline("char-desc")
+
+        while 1:
+            try:
+                gt.expect(r"handle: (0x[0-9a-f]+), uuid: ([0-9a-f]{8})", timeout=10)
+            except pexpect.TIMEOUT:
+                break
+            handle = gt.match.group(1)
+            uuid = gt.match.group(2)
+
+            if uuid == b"00002902" and hr_handle:
+                hr_ctl_handle = handle
+                break
+
+            elif uuid == b"00002a37":
+                hr_handle = handle
 
         if hr_handle == None:
-            # We determine which handle we should read for getting the heart rate
-            # measurement characteristic.
-            gt.sendline("char-desc")
-
-            while 1:
-                try:
-                    gt.expect(r"handle: (0x[0-9a-f]+), uuid: ([0-9a-f]{8})", timeout=10)
-                except pexpect.TIMEOUT:
-                    break
-                handle = gt.match.group(1)
-                uuid = gt.match.group(2)
-
-                if uuid == b"00002902" and hr_handle:
-                    hr_ctl_handle = handle
-                    break
-
-                elif uuid == b"00002a37":
-                    hr_handle = handle
-
-            if hr_handle == None:
-                log.error("Couldn't find the heart rate measurement handle?!")
-                return
+            log.error("Couldn't find the heart rate measurement handle?!")
+            return
 
         if hr_ctl_handle:
             # We send the request to get HRM notifications
@@ -227,7 +225,7 @@ def cli():
         sys.exit(1)
 
     try:
-        main(addr=args.m, gatttool=args.g, hr_handle=args.H)
+        main(addr=args.m, gatttool=args.gct)
     except rospy.ROSInterruptException:
         pass
 

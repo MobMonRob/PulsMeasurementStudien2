@@ -83,45 +83,6 @@ def interpret(data):
     return res
 
 
-def insert_db(sq, res, period, min_ce=2, max_ce=60 * 2, grace_commit=2 / 3.):
-    """
-    Inserts data into the database
-    """
-
-    if not hasattr(insert_db, "i"):
-        insert_db.i = 0
-    if not hasattr(insert_db, "commit_every"):
-        insert_db.commit_every = 5
-
-    tstamp = int(time.time())
-    if res.has_key("rr"):
-        for rr in res["rr"]:
-            sq.execute("INSERT INTO hrm VALUES (?, ?, ?)", (tstamp, res["hr"], rr))
-    else:
-        sq.execute("INSERT INTO hrm VALUES (?, ?, ?)", (tstamp, res["hr"], -1))
-
-    # Instead of pushing the data to the disk each time, we commit only every
-    # 'commit_every'.
-    if insert_db.i < insert_db.commit_every:
-        insert_db.i += 1
-    else:
-        t = time.time()
-        sq.commit()
-        delta_t = time.time() - t
-        log.debug("sqlite commit time: " + str(delta_t))
-        sq.execute("INSERT INTO sql VALUES (?, ?, ?)", (int(t), delta_t, insert_db.commit_every))
-
-        # Because the time for commiting to the disk is not known in advance,
-        # we measure it and automatically adjust automatically 'commit_every'
-        # following a rule similar to TCP Reno.
-        if delta_t < period * grace_commit:
-            insert_db.commit_every = min(insert_db.commit_every + 1, max_ce)
-        else:
-            insert_db.commit_every = max(insert_db.commit_every / 2, min_ce)
-
-        insert_db.i = 0
-
-
 def get_ble_hr_mac():
     """
     Scans BLE devices and returs the address of the first device found.
@@ -150,22 +111,18 @@ def get_ble_hr_mac():
     return addr
 
 
-def main(addr=None, sqlfile=None, gatttool="gatttool", check_battery=False, hr_handle=None, debug_gatttool=False):
+def main(addr=None, gatttool="gatttool", check_battery=False, hr_handle=None, debug_gatttool=False):
     """
     main routine to which orchestrates everything
     """
+    # set up ROS publisher and node
     pub = rospy.Publisher('pulsgurt', pulse, queue_size=10)
     rospy.init_node('pulsgurt_node', anonymous=False)
+    # number of measured pulse values. Increments for every measured value
     seq = 0
-    # rospy.sleep(1)
+    # message to be published is from type pulse. Can be found in pulse.msg
     msg_to_publish = pulse()
     rospy.sleep(1)
-    if sqlfile is not None:
-        # Init database connection
-        sq = sqlite3.connect(sqlfile)
-        with sq:
-            sq.execute("CREATE TABLE IF NOT EXISTS hrm (tstamp INTEGER, hr INTEGER, rr INTEGER)")
-            sq.execute("CREATE TABLE IF NOT EXISTS sql (tstamp INTEGER, commit_time REAL, commit_every INTEGER)")
 
     if addr is None:
         # In case no address has been provided, we scan to find any BLE devices
@@ -257,8 +214,6 @@ def main(addr=None, sqlfile=None, gatttool="gatttool", check_battery=False, hr_h
                 # If the timer expires, it means that we have lost the
                 # connection with the HR monitor
                 log.warn("Connection lost with " + addr + ". Reconnecting.")
-                if sqlfile is not None:
-                    sq.commit()
                 gt.sendline("quit")
                 try:
                     gt.wait()
@@ -287,22 +242,13 @@ def main(addr=None, sqlfile=None, gatttool="gatttool", check_battery=False, hr_h
 
             log.debug(res)
 
-            if sqlfile is None:
-                print("Heart rate: " + str(res["hr"]))
-                msg_to_publish.pulse = res["hr"]
-                msg_to_publish.time.stamp = rospy.Time.now()
-                msg_to_publish.time.seq = seq
-                pub.publish(msg_to_publish)
-                seq += 1
-                continue
 
-            # Push the data to the database
-            insert_db(sq, res, period)
-
-    if sqlfile is not None:
-        # We close the database properly
-        sq.commit()
-        sq.close()
+            print("Heart rate: " + str(res["hr"]))
+            msg_to_publish.pulse = res["hr"]
+            msg_to_publish.time.stamp = rospy.Time.now()
+            msg_to_publish.time.seq = seq
+            pub.publish(msg_to_publish)
+            seq += 1
 
     # We quit close the BLE connection properly
     gt.sendline("quit")

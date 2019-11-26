@@ -23,5 +23,7 @@
         <!-- visualize on an image_view window the stream generated -->
         <arg name="visualize" value="false" />
     </include>
-    <include file="$(find ros_face_detection)/launch/ros_face_detection.launch" />
+    <include file="$(find face_detection)/launch/face_detection.launch">
+        <arg name="topic" value="/webcam/image_raw" />
+    </include>
 </launch>

@@ -23,6 +23,6 @@ sudo sh -c 'echo "yaml https://raw.githubusercontent.com/basler/pylon-ros-camera
 ```sh
 source devel/setup.bash
 # Run one of the following launch files
-roslaunch ros_face_detection industry_camera.launch
-roslaunch ros_face_detection webcam.launch
+roslaunch face_detection industry_camera.launch
+roslaunch face_detection webcam.launch
 ```

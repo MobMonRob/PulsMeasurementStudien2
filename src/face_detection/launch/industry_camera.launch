@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find pylon_camera)/launch/pylon_camera_node.launch" />
+    <include file="$(find face_detection)/launch/face_detection.launch">
+        <arg name="topic" value="/pylon_camera_node/image_raw") />
+    </include>
+</launch>

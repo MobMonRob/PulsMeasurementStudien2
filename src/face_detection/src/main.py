@@ -2,24 +2,19 @@
 from __future__ import print_function
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
-from pulse_measure import PulseMeasurement
 
 import cv2
 import os
-import roslib
 import rospy
 import sys
-
-roslib.load_manifest('ros_face_detection')
 
 
 class ImageConverter:
 
-    def __init__(self):
+    def __init__(self, topic):
         self.image_pub = rospy.Publisher("/face_detection/image_raw", Image, queue_size=10)
         self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber("/webcam/image_raw", Image, self.callback)
-        self.pulse_processor = PulseMeasurement()
+        self.image_sub = rospy.Subscriber(topic, Image, self.callback)
 
     def callback(self, data):
         try:
@@ -41,29 +36,41 @@ class ImageConverter:
             minSize=(30, 30)
         )
 
-        # Draw a rectangle around the faces
-        for (x, y, w, h) in faces:
-            cv2.rectangle(cv_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            cropped_image = cv_image[y: y + h / 3, x: x + w]
-            # cv2.imshow("Cropped", cropped_image)
-            # cv2.waitKey(3)
+        if len(faces) is 0:
+            rospy.loginfo("No faces detected!")
+            return
 
-        cv2.imshow("Image window", cv_image)
+        face = faces[0]
+        x = face[0]
+        y = face[1]
+        w = face[2]
+        h = face[3]
+
+        cropped_image = cv_image[y: y + (int(h / 3.2)), x + (w / 4): x + (w / 4) + (w / 2)]
+
+        cv2.imshow("Cropped", cropped_image)
         cv2.waitKey(3)
 
         try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))
+            self.image_pub.publish(self.bridge.cv2_to_imgmsg(cropped_image, "bgr8"))
         except CvBridgeError as e:
             print(e)
 
 
 def main(args):
-    ic = ImageConverter()
-    rospy.init_node('image_converter', anonymous=True)
+    rospy.init_node('face_detection', anonymous=True, log_level=rospy.DEBUG)
+
+    # topic = rospy.get_param("~topic", "/pylon_camera_node/image_raw")
+    topic = rospy.get_param("~topic", "/webcam/image_raw")
+    rospy.loginfo("Listening on topic '" + topic + "'")
+
+    image_converter = ImageConverter(topic)
+
     try:
         rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down")
+
     cv2.destroyAllWindows()
 
 

@@ -83,7 +83,7 @@ def interpret(data):
     return res
 
 
-def main(addr=None, gatttool="gatttool", hr_handle=None, debug_gatttool=False):
+def main(addr=None, gatttool="gatttool", hr_handle=None):
     """
     main routine to which orchestrates everything
     """
@@ -107,8 +107,6 @@ def main(addr=None, gatttool="gatttool", hr_handle=None, debug_gatttool=False):
         while 1:
             print("Establishing connection to " + addr)
             gt = pexpect.spawn(gatttool + " -b " + addr + " -I")
-            if debug_gatttool:
-                gt.logfile = sys.stdout
 
             gt.expect(r"\[LE\]>")
             gt.sendline("connect")

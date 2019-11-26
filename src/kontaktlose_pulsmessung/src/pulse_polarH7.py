@@ -111,7 +111,7 @@ def get_ble_hr_mac():
     return addr
 
 
-def main(addr=None, gatttool="gatttool", check_battery=False, hr_handle=None, debug_gatttool=False):
+def main(addr=None, gatttool="gatttool", hr_handle=None, debug_gatttool=False):
     """
     main routine to which orchestrates everything
     """
@@ -122,14 +122,10 @@ def main(addr=None, gatttool="gatttool", check_battery=False, hr_handle=None, de
     seq = 0
     # message to be published is from type pulse. Can be found in pulse.msg
     msg_to_publish = pulse()
-    rospy.sleep(1)
 
     if addr is None:
         # In case no address has been provided, we scan to find any BLE devices
         addr = get_ble_hr_mac()
-        if addr == None:
-            sq.close()
-            return
 
     hr_ctl_handle = None
     retry = True
@@ -163,15 +159,6 @@ def main(addr=None, gatttool="gatttool", check_battery=False, hr_handle=None, de
 
         print("Connected to " + addr)
 
-        if check_battery:
-            gt.sendline("char-read-uuid 00002a19-0000-1000-8000-00805f9b34fb")
-            try:
-                gt.expect("value: ([0-9a-f]+)")
-                battery_level = gt.match.group(1)
-                print("Battery level: " + str(int(battery_level, 16)))
-
-            except pexpect.TIMEOUT:
-                log.error("Couldn't read battery level.")
 
         if hr_handle == None:
             # We determine which handle we should read for getting the heart rate

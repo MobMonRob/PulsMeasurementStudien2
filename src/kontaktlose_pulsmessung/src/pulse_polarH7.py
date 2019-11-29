@@ -38,32 +38,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="Bluetooth heart rate monitor data logger")
     parser.add_argument("-m", metavar='MAC', type=str, help="MAC address of BLE device (default: auto-discovery)")
-    parser.add_argument("-b", action='store_true', help="Check battery level")
     parser.add_argument("-g", metavar='PATH', type=str, help="gatttool path (default: system available)", default="gatttool")
-    parser.add_argument("-o", metavar='FILE', type=str, help="Output filename of the database (default: none)")
-    parser.add_argument("-H", metavar='HR_HANDLE', type=str, help="Gatttool handle used for HR notifications (default: none)")
-    parser.add_argument("-v", action='store_true', help="Verbose output")
-    parser.add_argument("-d", action='store_true', help="Enable debug of gatttool")
-
-    confpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "BLEHeartRateLogger.conf")
-    if os.path.exists(confpath):
-
-        config = configparser.SafeConfigParser()
-        config.read([confpath])
-        config = dict(config.items("config"))
-
-        # We compare here the configuration given in the config file with the
-        # configuration of the parser.
-        args = vars(parser.parse_args([]))
-        err = False
-        for key in config.iterkeys():
-            if key not in args:
-                log.error("Configuration file error: invalid key '" + key + "'.")
-                err = True
-        if err:
-            sys.exit(1)
-
-        parser.set_defaults(**config)
 
     return parser.parse_args()
 
@@ -107,97 +82,24 @@ def interpret(data):
     return res
 
 
-def insert_db(sq, res, period, min_ce=2, max_ce=60 * 2, grace_commit=2 / 3.):
-    """
-    Inserts data into the database
-    """
-
-    if not hasattr(insert_db, "i"):
-        insert_db.i = 0
-    if not hasattr(insert_db, "commit_every"):
-        insert_db.commit_every = 5
-
-    tstamp = int(time.time())
-    if res.has_key("rr"):
-        for rr in res["rr"]:
-            sq.execute("INSERT INTO hrm VALUES (?, ?, ?)", (tstamp, res["hr"], rr))
-    else:
-        sq.execute("INSERT INTO hrm VALUES (?, ?, ?)", (tstamp, res["hr"], -1))
-
-    # Instead of pushing the data to the disk each time, we commit only every
-    # 'commit_every'.
-    if insert_db.i < insert_db.commit_every:
-        insert_db.i += 1
-    else:
-        t = time.time()
-        sq.commit()
-        delta_t = time.time() - t
-        log.debug("sqlite commit time: " + str(delta_t))
-        sq.execute("INSERT INTO sql VALUES (?, ?, ?)", (int(t), delta_t, insert_db.commit_every))
-
-        # Because the time for commiting to the disk is not known in advance,
-        # we measure it and automatically adjust automatically 'commit_every'
-        # following a rule similar to TCP Reno.
-        if delta_t < period * grace_commit:
-            insert_db.commit_every = min(insert_db.commit_every + 1, max_ce)
-        else:
-            insert_db.commit_every = max(insert_db.commit_every / 2, min_ce)
-
-        insert_db.i = 0
-
-
-def get_ble_hr_mac():
-    """
-    Scans BLE devices and returs the address of the first device found.
-    """
-
-    while 1:
-        print("Trying to find a BLE device")
-        hci = pexpect.spawn("hcitool lescan")
-        try:
-            hci.expect("([0-9A-F]{2}[:-]){5}([0-9A-F]{2})", timeout=20)
-            addr = hci.match.group(0)
-            hci.close()
-            break
-
-        except pexpect.TIMEOUT:
-            time.sleep(20)
-            continue
-
-        except KeyboardInterrupt:
-            print("Received keyboard interrupt. Quitting cleanly.")
-            hci.close()
-            return None
-
-    # We wait for the 'hcitool lescan' to finish
-    time.sleep(1)
-    return addr
-
-
-def main(addr=None, sqlfile=None, gatttool="gatttool", check_battery=False, hr_handle=None, debug_gatttool=False):
+def main(addr=None, gatttool="gatttool"):
     """
     main routine to which orchestrates everything
     """
+    # set up ROS publisher and node
     pub = rospy.Publisher('pulsgurt', pulse, queue_size=10)
     rospy.init_node('pulsgurt_node', anonymous=False)
+    # number of measured pulse values. Increments for every measured value
     seq = 0
-    # rospy.sleep(1)
+    # message to be published is from type pulse. Can be found in pulse.msg
     msg_to_publish = pulse()
-    rospy.sleep(1)
-    if sqlfile is not None:
-        # Init database connection
-        sq = sqlite3.connect(sqlfile)
-        with sq:
-            sq.execute("CREATE TABLE IF NOT EXISTS hrm (tstamp INTEGER, hr INTEGER, rr INTEGER)")
-            sq.execute("CREATE TABLE IF NOT EXISTS sql (tstamp INTEGER, commit_time REAL, commit_every INTEGER)")
 
     if addr is None:
-        # In case no address has been provided, we scan to find any BLE devices
-        addr = get_ble_hr_mac()
-        if addr == None:
-            sq.close()
-            return
+        # A mac address has to be provided as command line argument
+        log.error("MAC address of polar H7 has not been provided")
+        return
 
+    hr_handle = None
     hr_ctl_handle = None
     retry = True
     while retry:
@@ -205,8 +107,6 @@ def main(addr=None, sqlfile=None, gatttool="gatttool", check_battery=False, hr_h
         while 1:
             print("Establishing connection to " + addr)
             gt = pexpect.spawn(gatttool + " -b " + addr + " -I")
-            if debug_gatttool:
-                gt.logfile = sys.stdout
 
             gt.expect(r"\[LE\]>")
             gt.sendline("connect")
@@ -230,39 +130,28 @@ def main(addr=None, sqlfile=None, gatttool="gatttool", check_battery=False, hr_h
 
         print("Connected to " + addr)
 
-        if check_battery:
-            gt.sendline("char-read-uuid 00002a19-0000-1000-8000-00805f9b34fb")
-            try:
-                gt.expect("value: ([0-9a-f]+)")
-                battery_level = gt.match.group(1)
-                print("Battery level: " + str(int(battery_level, 16)))
+        # We determine which handle we should read for getting the heart rate
+        # measurement characteristic.
+        gt.sendline("char-desc")
 
+        while 1:
+            try:
+                gt.expect(r"handle: (0x[0-9a-f]+), uuid: ([0-9a-f]{8})", timeout=10)
             except pexpect.TIMEOUT:
-                log.error("Couldn't read battery level.")
+                break
+            handle = gt.match.group(1)
+            uuid = gt.match.group(2)
+
+            if uuid == b"00002902" and hr_handle:
+                hr_ctl_handle = handle
+                break
+
+            elif uuid == b"00002a37":
+                hr_handle = handle
 
         if hr_handle == None:
-            # We determine which handle we should read for getting the heart rate
-            # measurement characteristic.
-            gt.sendline("char-desc")
-
-            while 1:
-                try:
-                    gt.expect(r"handle: (0x[0-9a-f]+), uuid: ([0-9a-f]{8})", timeout=10)
-                except pexpect.TIMEOUT:
-                    break
-                handle = gt.match.group(1)
-                uuid = gt.match.group(2)
-
-                if uuid == b"00002902" and hr_handle:
-                    hr_ctl_handle = handle
-                    break
-
-                elif uuid == b"00002a37":
-                    hr_handle = handle
-
-            if hr_handle == None:
-                log.error("Couldn't find the heart rate measurement handle?!")
-                return
+            log.error("Couldn't find the heart rate measurement handle?!")
+            return
 
         if hr_ctl_handle:
             # We send the request to get HRM notifications
@@ -281,8 +170,6 @@ def main(addr=None, sqlfile=None, gatttool="gatttool", check_battery=False, hr_h
                 # If the timer expires, it means that we have lost the
                 # connection with the HR monitor
                 log.warn("Connection lost with " + addr + ". Reconnecting.")
-                if sqlfile is not None:
-                    sq.commit()
                 gt.sendline("quit")
                 try:
                     gt.wait()
@@ -311,22 +198,13 @@ def main(addr=None, sqlfile=None, gatttool="gatttool", check_battery=False, hr_h
 
             log.debug(res)
 
-            if sqlfile is None:
-                print("Heart rate: " + str(res["hr"]))
-                msg_to_publish.pulse = res["hr"]
-                msg_to_publish.time.stamp = rospy.Time.now()
-                msg_to_publish.time.seq = seq
-                pub.publish(msg_to_publish)
-                seq += 1
-                continue
 
-            # Push the data to the database
-            insert_db(sq, res, period)
-
-    if sqlfile is not None:
-        # We close the database properly
-        sq.commit()
-        sq.close()
+            print("Heart rate: " + str(res["hr"]))
+            msg_to_publish.pulse = res["hr"]
+            msg_to_publish.time.stamp = rospy.Time.now()
+            msg_to_publish.time.seq = seq
+            pub.publish(msg_to_publish)
+            seq += 1
 
     # We quit close the BLE connection properly
     gt.sendline("quit")
@@ -346,13 +224,8 @@ def cli():
         log.critical("Couldn't find gatttool path!")
         sys.exit(1)
 
-    # Increase verbose level
-    if args.v:
-        log.setLevel(logging.DEBUG)
-    else:
-        log.setLevel(logging.INFO)
     try:
-        main(args.m, args.o, args.g, args.b, args.H, args.d)
+        main(addr=args.m, gatttool=args.gct)
     except rospy.ROSInterruptException:
         pass
 

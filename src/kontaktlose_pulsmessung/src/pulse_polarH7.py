@@ -225,7 +225,7 @@ def cli():
         sys.exit(1)
 
     try:
-        main(addr=args.m, gatttool=args.gct)
+        main(addr=args.m, gatttool=args.g)
     except rospy.ROSInterruptException:
         pass
 

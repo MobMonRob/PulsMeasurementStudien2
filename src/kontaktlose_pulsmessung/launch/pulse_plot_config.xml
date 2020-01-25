@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <root version="2.3.8">
- <tabbed_widget parent="main_window" name="Main Window">
-  <plotmatrix columns="1" tab_name="plot" rows="1">
+ <tabbed_widget name="Main Window" parent="main_window">
+  <plotmatrix rows="1" columns="1" tab_name="plot">
    <plot row="0" col="0">
-    <range bottom="61.725000" right="152.175217" top="115.275000" left="53.176480"/>
+    <range bottom="64.423739" left="1579950432.759640" right="1579950536.715010" top="91.576261"/>
     <limitY/>
-    <curve G="119" custom_transform="noTransform" R="31" B="180" name="/pulsgurt/pulse"/>
-    <transform value="noTransform"/>
+    <curve name="/pulsgurt/[pulse;time/stamp]" G="201" R="26" curve_x="/pulsgurt/time/stamp" custom_transform="XYPlot" B="56" curve_y="/pulsgurt/pulse"/>
+    <transform value="XYPlot"/>
    </plot>
   </plotmatrix>
   <currentPlotMatrix index="0"/>

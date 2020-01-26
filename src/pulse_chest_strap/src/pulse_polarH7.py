@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 """
     BLEHeartRateLogger
@@ -21,13 +21,10 @@ import os
 import sys
 import time
 import logging
-import sqlite3
 import pexpect
 import argparse
-import configparser
 import rospy
 from pulse_chest_strap.msg import pulse
-from std_msgs.msg import String
 logging.basicConfig(format="%(asctime)-15s  %(message)s")
 log = logging.getLogger("BLEHeartRateLogger")
 
@@ -149,7 +146,7 @@ def main(addr=None, gatttool="gatttool"):
             elif uuid == b"00002a37":
                 hr_handle = handle
 
-        if hr_handle == None:
+        if hr_handle is None:
             log.error("Couldn't find the heart rate measurement handle?!")
             return
 
@@ -197,7 +194,6 @@ def main(addr=None, gatttool="gatttool"):
             res = interpret(data)
 
             log.debug(res)
-
 
             print("Heart rate: " + str(res["hr"]))
             msg_to_publish.pulse = res["hr"]

@@ -26,7 +26,7 @@ import pexpect
 import argparse
 import configparser
 import rospy
-from kontaktlose_pulsmessung.msg import pulse
+from pulse_chest_strap.msg import pulse
 from std_msgs.msg import String
 logging.basicConfig(format="%(asctime)-15s  %(message)s")
 log = logging.getLogger("BLEHeartRateLogger")
@@ -88,7 +88,7 @@ def main(addr=None, gatttool="gatttool"):
     """
     # set up ROS publisher and node
     pub = rospy.Publisher('pulsgurt', pulse, queue_size=10)
-    rospy.init_node('pulsgurt_node', anonymous=False)
+    rospy.init_node('pulsgurt_node', anonymous=False, disable_signals=True)
     # number of measured pulse values. Increments for every measured value
     seq = 0
     # message to be published is from type pulse. Can be found in pulse.msg

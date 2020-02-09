@@ -33,7 +33,7 @@ class ImageConverter:
 def main(args):
     rospy.init_node('face_detection', anonymous=True, log_level=rospy.DEBUG)
 
-    topic = rospy.get_param("~topic", "/face_detection/image_raw")
+    topic = rospy.get_param("~topic", "/face_detection/face")
     rospy.loginfo("Listening on topic '" + topic + "'")
 
     image_converter = ImageConverter(topic)

@@ -12,7 +12,8 @@ import sys
 class ImageConverter:
 
     def __init__(self, topic):
-        self.image_pub = rospy.Publisher("/face_detection/image_raw", Image, queue_size=10)
+        self.face_publisher = rospy.Publisher("/face_detection/face", Image, queue_size=10)
+        self.forehead_publisher = rospy.Publisher("/face_detection/forehead", Image, queue_size=10)
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber(topic, Image, self.callback)
 
@@ -49,6 +50,12 @@ class ImageConverter:
         face_h = biggest_face[3]
         cv2.rectangle(cv_image, (face_x, face_y), (face_x + face_w, face_y + face_h), (255, 0, 0), 2)
 
+        try:
+            ros_img = self.bridge.cv2_to_imgmsg(cropped_image, "bgr8")
+            self.face_publisher.publish(ros_img)
+        except CvBridgeError as e:
+            print(e).0
+
         forehead_x = face_x + face_w / 4
         forehead_y = face_y
         forehead_w = face_w / 2
@@ -63,13 +70,14 @@ class ImageConverter:
             2
         )
 
-        cv2.imshow("Image", cv_image)
-        cv2.waitKey(3)
-
         try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(cropped_image, "bgr8"))
+            ros_img = self.bridge.cv2_to_imgmsg(cropped_image, "bgr8")
+            self.forehead_publisher.publish(ros_img)
         except CvBridgeError as e:
             print(e).0
+
+        cv2.imshow("Image", cv_image)
+        cv2.waitKey(3)
 
     def get_biggest_face(self, faces):
         biggest_face = None

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import print_function
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 
@@ -22,7 +21,7 @@ class ImageConverter:
             # Convert ROS image to OpenCV image
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
-            print(e)
+            rospy.logerr(e)
             return
 
         # Get gray scale image from OpenCV
@@ -64,9 +63,9 @@ class ImageConverter:
             # Publish image to ROS-Topic
             self.face_publisher.publish(ros_img)
         except CvBridgeError as e:
-            print(e).0
+            rospy.logerr(e)
 
-        # Define region of forhead
+        # Define region of forehead
         forehead_x = face_x + face_w / 4
         forehead_y = face_y
         forehead_w = face_w / 2
@@ -89,7 +88,7 @@ class ImageConverter:
             # Publish image to ROS-Topic
             self.forehead_publisher.publish(ros_img)
         except CvBridgeError as e:
-            print(e).0
+            rospy.logerr(e)
 
         # Show original image with visualized face and forehead
         cv2.imshow("Image", cv_image)
@@ -120,7 +119,7 @@ def main(args):
     try:
         rospy.spin()
     except KeyboardInterrupt:
-        print("Shutting down")
+        rospy.loginfo("Shutting down")
 
     cv2.destroyAllWindows()
 

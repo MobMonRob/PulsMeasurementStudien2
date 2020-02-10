@@ -117,7 +117,7 @@ def main(args):
     topic = rospy.get_param("~topic", "/webcam/image_raw")
     show_image_frame = rospy.get_param("~show_image_frame", False)
     rospy.loginfo("Listening on topic '" + topic + "'")
-    rospy.loginfo("Show image frame: '" + show_image_frame + "'")
+    rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
 
     # Start image converter
     image_converter = ImageConverter(topic, show_image_frame)

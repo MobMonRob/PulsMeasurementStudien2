@@ -25,5 +25,6 @@
     </include>
     <include file="$(find face_detection)/launch/face_detection.launch">
         <arg name="topic" value="/webcam/image_raw" />
+        <arg name="show_image_frame" value="true" />
     </include>
 </launch>

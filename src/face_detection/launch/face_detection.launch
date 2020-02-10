@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="topic" default="/pylon_camera_node/image_raw" />
+    <arg name="show_image_frame" default="true" />
     <node pkg="face_detection" type="main.py" name="face_detection" output="screen">
         <param name="topic" type="string" value="$(arg topic)" />
+        <param name="show_image_frame" type="bool" value="$(arg show_image_frame)" />
     </node>
 </launch>

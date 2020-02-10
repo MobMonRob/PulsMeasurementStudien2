@@ -19,18 +19,18 @@ class PulseHeadMovement:
         self.topic = topic
 
     def run(self):
-        rospy.Subscriber(self.topic, Image, self.pulse_callback())
+        rospy.Subscriber(self.topic, Image, self.pulse_callback)
         try:
             rospy.spin()
         except KeyboardInterrupt:
             rospy.loginfo("Shutting down")
 
-    def pulse_callback(self):
+    def pulse_callback(self, forehead):
         rospy.loginfo("Hello")
 
 
 def main():
-    rospy.init_node('head_movement_listener', anonymus=False, log_level=rospy.DEBUG)
+    rospy.init_node('head_movement_listener', anonymous=False, log_level=rospy.DEBUG)
     topic = rospy.get_param("~topic", "/face_detection/forehead")
     rospy.loginfo("Listening on topic '" + topic + "'")
     pulse = PulseHeadMovement(topic)

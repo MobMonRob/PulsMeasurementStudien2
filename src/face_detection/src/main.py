@@ -10,7 +10,8 @@ import sys
 
 class ImageConverter:
 
-    def __init__(self, topic):
+    def __init__(self, topic, show_image_frame):
+        self.show_image_frame = show_image_frame
         self.face_publisher = rospy.Publisher("/face_detection/face", Image, queue_size=10)
         self.forehead_publisher = rospy.Publisher("/face_detection/forehead", Image, queue_size=10)
         self.bridge = CvBridge()
@@ -54,8 +55,6 @@ class ImageConverter:
 
         # Crop image to biggest face
         cropped_face = cv_image[face_y: face_y + face_h, face_x: face_x + face_w]
-        # Visualize face in original image
-        cv2.rectangle(cv_image, (face_x, face_y), (face_x + face_w, face_y + face_h), (255, 0, 0), 2)
 
         try:
             # Convert OpenCV image back to ROS image
@@ -73,14 +72,6 @@ class ImageConverter:
 
         # Crop image to forehead
         cropped_forehead = cv_image[forehead_y: forehead_y + forehead_h, forehead_x: forehead_x + forehead_w]
-        # Visualize forehead in original image
-        cv2.rectangle(
-            cv_image,
-            (forehead_x, forehead_y),
-            (forehead_x + forehead_w, forehead_y + forehead_h),
-            (0, 0, 255),
-            2
-        )
 
         try:
             # Convert OpenCV image back to ROS image
@@ -90,9 +81,22 @@ class ImageConverter:
         except CvBridgeError as e:
             rospy.logerr(e)
 
-        # Show original image with visualized face and forehead
-        cv2.imshow("Image", cv_image)
-        cv2.waitKey(3)
+        if self.show_image_frame is True:
+            # Visualize face in original image
+            cv2.rectangle(cv_image, (face_x, face_y), (face_x + face_w, face_y + face_h), (255, 0, 0), 2)
+
+            # Visualize forehead in original image
+            cv2.rectangle(
+                cv_image,
+                (forehead_x, forehead_y),
+                (forehead_x + forehead_w, forehead_y + forehead_h),
+                (0, 0, 255),
+                2
+            )
+
+            # Show original image with visualized face and forehead
+            cv2.imshow("Image", cv_image)
+            cv2.waitKey(3)
 
     def get_biggest_face(self, faces):
         biggest_face = None
@@ -111,10 +115,12 @@ def main(args):
     # Get ROS topic from launch parameter
     # topic = rospy.get_param("~topic", "/pylon_camera_node/image_raw")
     topic = rospy.get_param("~topic", "/webcam/image_raw")
+    show_image_frame = rospy.get_param("~show_image_frame", False)
     rospy.loginfo("Listening on topic '" + topic + "'")
+    rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
 
     # Start image converter
-    image_converter = ImageConverter(topic)
+    image_converter = ImageConverter(topic, show_image_frame)
 
     try:
         rospy.spin()

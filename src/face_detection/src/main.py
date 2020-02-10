@@ -12,12 +12,15 @@ class ImageConverter:
 
     def __init__(self, topic, show_image_frame):
         self.show_image_frame = show_image_frame
+        self.bridge = CvBridge()
+
         self.face_publisher = rospy.Publisher("/face_detection/face", Image, queue_size=10)
         self.forehead_publisher = rospy.Publisher("/face_detection/forehead", Image, queue_size=10)
-        self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber(topic, Image, self.callback)
+        self.bottom_face_publisher = rospy.Publisher("/face_detection/bottom_face", Image, queue_size=10)
 
-    def callback(self, data):
+        self.image_sub = rospy.Subscriber(topic, Image, self.on_image)
+
+    def on_image(self, data):
         try:
             # Convert ROS image to OpenCV image
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -55,14 +58,8 @@ class ImageConverter:
 
         # Crop image to biggest face
         cropped_face = cv_image[face_y: face_y + face_h, face_x: face_x + face_w]
-
-        try:
-            # Convert OpenCV image back to ROS image
-            ros_img = self.bridge.cv2_to_imgmsg(cropped_face, "bgr8")
-            # Publish image to ROS-Topic
-            self.face_publisher.publish(ros_img)
-        except CvBridgeError as e:
-            rospy.logerr(e)
+        # Publish image to ROS
+        self.publish_image(self.face_publisher, cropped_face)
 
         # Define region of forehead
         forehead_x = face_x + face_w / 4
@@ -72,14 +69,19 @@ class ImageConverter:
 
         # Crop image to forehead
         cropped_forehead = cv_image[forehead_y: forehead_y + forehead_h, forehead_x: forehead_x + forehead_w]
+        # Publish image to ROS
+        self.publish_image(self.forehead_publisher, cropped_forehead)
 
-        try:
-            # Convert OpenCV image back to ROS image
-            ros_img = self.bridge.cv2_to_imgmsg(cropped_forehead, "bgr8")
-            # Publish image to ROS-Topic
-            self.forehead_publisher.publish(ros_img)
-        except CvBridgeError as e:
-            rospy.logerr(e)
+        # Define bottom region
+        bottom_x = face_x + face_w / 4
+        bottom_y = face_y + face_h / 2
+        bottom_w = face_w / 2
+        bottom_h = face_h / 2
+
+        # Crop image to bottom region
+        cropped_bottom_face = cv_image[bottom_y: bottom_y + bottom_h, bottom_x: bottom_x + bottom_w]
+        # Publish image to ROS
+        self.publish_image(self.bottom_face_publisher, cropped_bottom_face)
 
         if self.show_image_frame is True:
             # Visualize face in original image
@@ -91,6 +93,15 @@ class ImageConverter:
                 (forehead_x, forehead_y),
                 (forehead_x + forehead_w, forehead_y + forehead_h),
                 (0, 0, 255),
+                2
+            )
+
+            # Visualize bottom region in original image
+            cv2.rectangle(
+                cv_image,
+                (bottom_x, bottom_y),
+                (bottom_x + bottom_w, bottom_y + bottom_h),
+                (0, 255, 0),
                 2
             )
 
@@ -107,6 +118,15 @@ class ImageConverter:
                 biggest_face = face
 
         return biggest_face
+
+    def publish_image(self, publisher, cv_image):
+        try:
+            # Convert OpenCV image back to ROS image
+            ros_img = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
+            # Publish image to ROS-Topic
+            publisher.publish(ros_img)
+        except CvBridgeError as e:
+            rospy.logerr(e)
 
 
 def main(args):

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find face_detection)/launch/idustry_camera.launch" />
+    <include file="$(find pulse_head_movement)/launch/pulse_head_movement.launch">
+        <arg name="topic" value="/face_detection/forehead" />
+    </include>
+</launch>

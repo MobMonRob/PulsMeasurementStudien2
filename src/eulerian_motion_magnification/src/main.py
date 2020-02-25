@@ -15,7 +15,6 @@ class ImageConverter:
         self.image_sub = rospy.Subscriber(topic, Image, self.callback)
         self.bridge = CvBridge()
         self.pulse_processor = PulseMeasurement()
-        self.pulse_processor.buffer_size = 20
 
     def callback(self, data):
         try:
@@ -26,14 +25,10 @@ class ImageConverter:
 
         self.pulse_processor.run(cv_image)
 
-        if len(self.pulse_processor.data_buffer) == self.pulse_processor.buffer_size:
-            rospy.loginfo("BPM: " + str(self.pulse_processor.bpm))
-
-
 def main(args):
     rospy.init_node('face_detection', anonymous=True, log_level=rospy.DEBUG)
 
-    topic = rospy.get_param("~topic", "/face_detection/face")
+    topic = rospy.get_param("~topic", "/face_detection/forehead")
     rospy.loginfo("Listening on topic '" + topic + "'")
 
     image_converter = ImageConverter(topic)

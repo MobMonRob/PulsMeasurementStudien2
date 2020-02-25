@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="topic" default="/face_detection/face" />
+    <node pkg="eulerian_motion_magnification" type="main.py" name="eulerian_motion_magnification" output="screen">
+        <param name="topic" type="string" value="$(arg topic)" />
+    </node>
+</launch>
+
+

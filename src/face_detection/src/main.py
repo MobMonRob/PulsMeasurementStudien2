@@ -8,9 +8,10 @@ import rospy
 import sys
 
 
-class ImageConverter:
+class FaceDetector:
 
     def __init__(self, topic, show_image_frame):
+        self.topic = topic
         self.show_image_frame = show_image_frame
         self.bridge = CvBridge()
 
@@ -18,7 +19,13 @@ class ImageConverter:
         self.forehead_publisher = rospy.Publisher("/face_detection/forehead", Image, queue_size=10)
         self.bottom_face_publisher = rospy.Publisher("/face_detection/bottom_face", Image, queue_size=10)
 
-        self.image_sub = rospy.Subscriber(topic, Image, self.on_image)
+    def run(self):
+        rospy.Subscriber(self.topic, Image, self.on_image)
+
+        try:
+            rospy.spin()
+        except KeyboardInterrupt:
+            rospy.loginfo("Shutting down")
 
     def on_image(self, data):
         try:
@@ -139,14 +146,11 @@ def main(args):
     rospy.loginfo("Listening on topic '" + topic + "'")
     rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
 
-    # Start image converter
-    image_converter = ImageConverter(topic, show_image_frame)
+    # Start face detection
+    face_detector = FaceDetector(topic, show_image_frame)
+    face_detector.run()
 
-    try:
-        rospy.spin()
-    except KeyboardInterrupt:
-        rospy.loginfo("Shutting down")
-
+    # Destroy windows on close
     cv2.destroyAllWindows()
 
 

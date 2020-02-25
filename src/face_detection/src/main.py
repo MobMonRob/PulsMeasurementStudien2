@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
+from face_detection.msg import Mask
 
 import cv2
 import os
 import rospy
 import sys
+import numpy as np
 
 
 class FaceDetector:
@@ -18,6 +20,7 @@ class FaceDetector:
         self.face_publisher = rospy.Publisher("/face_detection/face", Image, queue_size=10)
         self.forehead_publisher = rospy.Publisher("/face_detection/forehead", Image, queue_size=10)
         self.bottom_face_publisher = rospy.Publisher("/face_detection/bottom_face", Image, queue_size=10)
+        self.mask_publisher = rospy.Publisher("/face_detection/mask", Mask, queue_size=10)
 
     def run(self):
         rospy.Subscriber(self.topic, Image, self.on_image)
@@ -52,8 +55,11 @@ class FaceDetector:
         # Show original image, if no faces are detected
         if len(faces) is 0:
             rospy.loginfo("No faces detected!")
-            cv2.imshow("Image", cv_image)
-            cv2.waitKey(3)
+
+            if self.show_image_frame is True:
+                cv2.imshow("Image", cv_image)
+                cv2.waitKey(3)
+
             return
 
         # Get biggest face
@@ -69,10 +75,10 @@ class FaceDetector:
         self.publish_image(self.face_publisher, cropped_face)
 
         # Define region of forehead
-        forehead_x = face_x + face_w / 4
-        forehead_y = face_y
-        forehead_w = face_w / 2
-        forehead_h = int(face_h / 3.2)
+        forehead_x = face_x + face_w / 3
+        forehead_y = face_y + face_h / 16
+        forehead_w = face_w / 3
+        forehead_h = int(face_h / 5)
 
         # Crop image to forehead
         cropped_forehead = cv_image[forehead_y: forehead_y + forehead_h, forehead_x: forehead_x + forehead_w]
@@ -89,6 +95,14 @@ class FaceDetector:
         cropped_bottom_face = cv_image[bottom_y: bottom_y + bottom_h, bottom_x: bottom_x + bottom_w]
         # Publish image to ROS
         self.publish_image(self.bottom_face_publisher, cropped_bottom_face)
+
+        # Publish image with mask to ROS
+        mask = self.get_mask(
+            gray_scale_image,
+            [(forehead_x, forehead_y, forehead_w, forehead_h), (bottom_x, bottom_y, bottom_w, bottom_h)]
+        )
+
+        self.publish_mask(gray_scale_image, mask)
 
         if self.show_image_frame is True:
             # Visualize face in original image
@@ -126,12 +140,45 @@ class FaceDetector:
 
         return biggest_face
 
+    def get_mask(self, gray_scale_image, rects):
+        # Generate mask with zeros
+        mask = np.zeros_like(gray_scale_image)
+
+        for x, y, w, h in rects:
+            # Fill in a rectangle area of the 'mask' array white
+            cv2.rectangle(
+                mask,
+                (x, y),
+                (x + w, y + h),
+                (255, 255, 255),
+                -1
+            )
+
+        return mask
+
     def publish_image(self, publisher, cv_image):
         try:
             # Convert OpenCV image back to ROS image
             ros_img = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
+
             # Publish image to ROS-Topic
             publisher.publish(ros_img)
+        except CvBridgeError as e:
+            rospy.logerr(e)
+
+    def publish_mask(self, cv_image, mask):
+        try:
+            # Convert OpenCV image back to ROS image
+            ros_img = self.bridge.cv2_to_imgmsg(cv_image, "mono8")
+            ros_mask = self.bridge.cv2_to_imgmsg(mask, "mono8")
+
+            # Create Mask ROS message from original image and roi mask
+            ros_msg = Mask()
+            ros_msg.image = ros_img
+            ros_msg.mask = ros_mask
+
+            # Publish image with mask to ROS topic
+            self.mask_publisher.publish(ros_msg)
         except CvBridgeError as e:
             rospy.logerr(e)
 

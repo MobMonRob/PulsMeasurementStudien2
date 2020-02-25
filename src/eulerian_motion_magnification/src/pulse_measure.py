@@ -19,9 +19,7 @@ class PulseMeasurement:
 
     def run(self, roi):
         self.roi = cv2.resize(roi, (200, 200))
-        self.downsample();
-        cv2.imshow("img", self.roi)
+        downsampledImage = cv2.pyrDown(self.roi)
+
+        cv2.imshow("down", downsampledImage)
         cv2.waitKey(3)
-
-
-    def downsample(self):

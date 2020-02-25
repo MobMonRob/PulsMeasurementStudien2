@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dragandbot_common" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pylon-ros-camera" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/video_stream_opencv" vcs="Git" />
+  </component>
+</project>

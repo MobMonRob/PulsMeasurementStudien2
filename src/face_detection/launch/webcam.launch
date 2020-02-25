@@ -1,12 +1,15 @@
 <?xml version="1.0"?>
 <launch>
+    <arg name="topic" default="/webcam/image_raw" />
+    <arg name="show_image_frame" default="true" />
+    <arg name="fps" default="30" />
     <include file="$(find video_stream_opencv)/launch/camera.launch" >
         <!-- node name and ros graph name -->
         <arg name="camera_name" value="webcam" />
         <!-- means video device 0, /dev/video0 -->
         <arg name="video_stream_provider" value="0" />
         <!-- set camera fps to (if the device allows) -->
-        <arg name="set_camera_fps" value="30"/>
+        <arg name="set_camera_fps" value="$(arg fps)"/>
         <!-- set buffer queue size of frame capturing to (1 means we want the latest frame only) -->
         <arg name="buffer_queue_size" value="1" />
         <!-- throttling the querying of frames to -->
@@ -24,7 +27,7 @@
         <arg name="visualize" value="false" />
     </include>
     <include file="$(find face_detection)/launch/face_detection.launch">
-        <arg name="topic" value="/webcam/image_raw" />
-        <arg name="show_image_frame" value="true" />
+        <arg name="topic" value="$(arg topic)" />
+        <arg name="show_image_frame" value="$(arg show_image_frame)" />
     </include>
 </launch>

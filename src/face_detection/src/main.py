@@ -97,12 +97,16 @@ class FaceDetector:
         self.publish_image(self.bottom_face_publisher, cropped_bottom_face)
 
         # Publish image with mask to ROS
-        mask = self.get_mask(
+        forehead_mask = self.get_mask(
             gray_scale_image,
-            [(forehead_x, forehead_y, forehead_w, forehead_h), (bottom_x, bottom_y, bottom_w, bottom_h)]
-        )
+            [(forehead_x, forehead_y, forehead_w, forehead_h)])
 
-        self.publish_mask(gray_scale_image, mask)
+        # Publish image with forhead mask to ROS
+        bottom_mask = self.get_mask(
+            gray_scale_image,
+            [(bottom_x, bottom_y, bottom_w, bottom_h)]
+        )
+        self.publish_mask(gray_scale_image, forehead_mask, bottom_mask)
 
         if self.show_image_frame is True:
             # Visualize face in original image
@@ -166,16 +170,17 @@ class FaceDetector:
         except CvBridgeError as e:
             rospy.logerr(e)
 
-    def publish_mask(self, cv_image, mask):
+    def publish_mask(self, cv_image, forehead_mask, bottom_face_mask):
         try:
             # Convert OpenCV image back to ROS image
             ros_img = self.bridge.cv2_to_imgmsg(cv_image, "mono8")
-            ros_mask = self.bridge.cv2_to_imgmsg(mask, "mono8")
-
+            ros_forehead_mask = self.bridge.cv2_to_imgmsg(forehead_mask, "mono8")
+            ros_bottom_mask = self.bridge.cv2_to_imgmsg(bottom_face_mask, "mono8")
             # Create Mask ROS message from original image and roi mask
             ros_msg = Mask()
             ros_msg.image = ros_img
-            ros_msg.mask = ros_mask
+            ros_msg.forehead_mask = ros_forehead_mask
+            ros_msg.bottom_face_mask = ros_bottom_mask
 
             # Publish image with mask to ROS topic
             self.mask_publisher.publish(ros_msg)

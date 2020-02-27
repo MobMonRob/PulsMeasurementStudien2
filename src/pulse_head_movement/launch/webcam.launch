@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-    <include file="$(find face_detection)/launch/webcam.launch" />
+    <include file="$(find face_detection)/launch/webcam.launch">
+        <arg name="show_image_frame" value="false" />
+    </include>
     <include file="$(find pulse_head_movement)/launch/pulse_head_movement.launch">
-        <arg name="topic" value="/face_detection/forehead" />
+        <arg name="topic" value="/face_detection/mask" />
     </include>
 </launch>

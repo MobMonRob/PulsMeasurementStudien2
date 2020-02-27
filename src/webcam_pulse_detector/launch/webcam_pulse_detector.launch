@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="topic" default="/webcam/image_raw" />
+    <node pkg="webcam_pulse_detector" type="main.py" name="webcam_pulse_detector" output="screen">
+        <param name="topic" type="string" value="$(arg topic)" />
+    </node>
+</launch>

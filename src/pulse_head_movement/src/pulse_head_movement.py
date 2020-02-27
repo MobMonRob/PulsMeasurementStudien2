@@ -10,17 +10,19 @@ import rospy
 from cv_bridge import CvBridge, CvBridgeError
 from face_detection.msg import Mask
 import common
+import time
 
 class PulseHeadMovement:
 
     def __init__(self, topic):
         self.topic = topic
         self.bridge = CvBridge()
-        self.lk_params = dict( winSize  = (31, 31),
-                  maxLevel = 5,
+        self.lk_params = dict( winSize  = (35, 35),
+                  maxLevel = 2,
                   criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
         self.points_to_track = None
         self.prev_image = None
+        self.track_len = 32
 
     def run(self):
         rospy.Subscriber(self.topic, Mask, self.pulse_callback)
@@ -62,38 +64,51 @@ class PulseHeadMovement:
             bottom_mask = self.bridge.imgmsg_to_cv2(mask.bottom_face_mask)
             forehead_mask = self.bridge.imgmsg_to_cv2(mask.forehead_mask)
             self.show_image_with_mask(original_image,forehead_mask,bottom_mask)
-            if self.points_to_track is None:
+            if self.points_to_track is None or len(self.points_to_track)==0:
                 # get initial tracking points
                 self.prev_image = original_image
                 self.points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
                 rospy.loginfo(self.points_to_track)
                 return
             # plot tracking points
-            for new in self.points_to_track:
-                x = new[0][0]
-                y = new[0][1]
-                cv2.circle(original_image, (x, y), 5, (25, 0, 0))
-            cv2.imshow("Feature", original_image)
-            cv2.waitKey(3)
+            #for new in self.points_to_track:
+            #    x = new[0][0]
+            #    y = new[0][1]
+            #    cv2.circle(original_image, (x, y), 5, (25, 0, 0))
+            #cv2.imshow("Feature", original_image)
+            #cv2.waitKey(3)
 
             # track points with lucas kanade tracker
-            #new_points, status, error = cv2.calcOpticalFlowPyrLK(self.prev_image, original_image, self.points_to_track, None, **self.lk_params)
-            #good_new = new_points[status == 1]
-            p1, st, err = cv2.calcOpticalFlowPyrLK(self.prev_image, original_image, self.points_to_track, None, **self.lk_params)
-            p0r, st, err = cv2.calcOpticalFlowPyrLK(original_image, self.prev_image, p1, None, **self.lk_params)
-            d = abs(self.points_to_track - p0r).reshape(-1, 2).max(-1)
-            good = d < 1
-            new_pts = []
-            for pts, val in zip(p1, good):
-                if val:
-                    # points using forward-backward error
-                    rospy.loginfo(pts)
-                    new_pts.append(pts)
-            self.points_to_track = np.asarray(new_pts).reshape(-1, 1, 2)
+            t0 = time.time()
+            t1, t2, t3 = 0, 0, 0
+            # make a copy for visualization
+            vis = original_image.copy()
+            if len(self.points_to_track) > 0:
+                img0, img1 = self.prev_image, original_image
+                # get tracking points
+                t1 = time.time() - t0
+                p0 = np.float32([tr[-1] for tr in self.points_to_track]).reshape(-1, 1, 2)
+                # apply Lucas-Kanade tracker with optical flow
+                p1, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, p0, None, **self.lk_params)
+                p0r, st, err = cv2.calcOpticalFlowPyrLK(img1, img0, p1, None, **self.lk_params)
+                t2 = time.time() - t0
+                d = abs(p0 - p0r).reshape(-1, 2).max(-1)
+                good = d < 1
+                new_tracks = []
+                for tr, (x, y), good_flag in zip(self.points_to_track, p1.reshape(-1, 2), good):
+                    if not good_flag:
+                        continue
+                    np.append(tr,(x, y))
+                    if len(tr) > self.track_len:
+                        del tr[0]
+                    new_tracks.append(tr)
+                    cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
 
-            #self.points_to_track = good_new.reshape(-1, 1, 2)
-            self.prev_image = original_image
-
+                t3 = time.time() - t0
+                self.points_to_track = new_tracks
+                cv2.polylines(vis, [np.int32(tr) for tr in self.points_to_track], False, (0, 255, 0))
+                cv2.imshow('lk_track', vis)
+                cv2.waitKey(3)
         except CvBridgeError as e:
             rospy.logerr(e)
             return

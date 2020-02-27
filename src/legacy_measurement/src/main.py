@@ -15,7 +15,7 @@ class ImageConverter:
         self.image_sub = rospy.Subscriber(topic, Image, self.callback)
         self.bridge = CvBridge()
         self.pulse_processor = PulseMeasurement()
-        self.pulse_processor.buffer_size = 20
+        self.pulse_processor.buffer_size = 30 * 5  # MAX_FPS * 5
 
     def callback(self, data):
         try:
@@ -24,7 +24,9 @@ class ImageConverter:
             print(e)
             return
 
-        self.pulse_processor.run(cv_image)
+        cv_image = cv2.flip(cv_image, 1)
+        frame = np.copy(cv_image)
+        self.pulse_processor.run(frame)
 
         if len(self.pulse_processor.data_buffer) == self.pulse_processor.buffer_size:
             rospy.loginfo("BPM: " + str(self.pulse_processor.bpm))

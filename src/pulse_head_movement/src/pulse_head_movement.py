@@ -9,7 +9,6 @@ import cv2
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
 from face_detection.msg import Mask
-import common
 import time
 
 class PulseHeadMovement:
@@ -23,8 +22,9 @@ class PulseHeadMovement:
         self.points_to_track = None
         self.prev_image = None
         self.track_len = 32
-        self.refresh_rate = 20
+        self.refresh_rate = 50
         self.frame_index = -1
+        self.y_tracking_signal = None
 
     def run(self):
         rospy.Subscriber(self.topic, Mask, self.pulse_callback)
@@ -49,6 +49,7 @@ class PulseHeadMovement:
         forehead_points = np.array(forehead_points, dtype=np.float32)
         # put tracking points of both regions in one array and return feature points
         feature_points = np.append(feature_points, forehead_points, axis=0)
+        self.y_tracking_signal = np.empty([len(feature_points), self.refresh_rate-1], dtype=np.float32)
         return feature_points
 
     def calculate_optical_flow(self, image):
@@ -58,12 +59,14 @@ class PulseHeadMovement:
         if len(self.points_to_track) > 0:
             img0, img1 = cv2.equalizeHist(self.prev_image), cv2.equalizeHist(image)
             p1, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, self.points_to_track, None, **self.lk_params)
-
+            point_index = 0
             for p in p1:
                 cv2.circle(vis, (p[0][0], p[0][1]), 2, (0, 255, 0), -1)
+                self.y_tracking_signal[point_index][(self.frame_index%self.refresh_rate)-1] = p[0][1]
+                point_index += 1
 
             self.points_to_track = p1
-            rospy.loginfo(p1)
+            #rospy.loginfo(self.frame_index%self.refresh_rate)
             cv2.imshow('lk_track', vis)
             cv2.waitKey(3)
 
@@ -85,11 +88,15 @@ class PulseHeadMovement:
             forehead_mask = self.bridge.imgmsg_to_cv2(mask.forehead_mask)
             # self.show_image_with_mask(original_image,forehead_mask,bottom_mask)
             # refresh the points to track after a certain frame rate
-            if self.frame_index % self.refresh_rate == 0:
+            if self.frame_index % self.refresh_rate == 0 \
+                    or self.points_to_track is None \
+                    or len(self.points_to_track) == 0:
+                if self.y_tracking_signal is not None:
+                    rospy.loginfo(self.y_tracking_signal)
                 # get initial tracking points
                 self.prev_image = original_image
                 self.points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
-                rospy.loginfo(self.points_to_track)
+                # rospy.loginfo(self.points_to_track)
                 return
             if self.points_to_track is not None:
                 self.calculate_optical_flow(original_image)

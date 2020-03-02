@@ -23,8 +23,10 @@ class PulseHeadMovement:
         self.prev_image = None
         self.track_len = 32
         self.refresh_rate = 50
-        self.frame_index = -1
+        self.frame_index = 0
         self.y_tracking_signal = None
+        self.start_time = None
+        self.refresh_time = None
 
     def run(self):
         rospy.Subscriber(self.topic, Mask, self.pulse_callback)
@@ -70,6 +72,37 @@ class PulseHeadMovement:
             cv2.imshow('lk_track', vis)
             cv2.waitKey(3)
 
+    def process_saved_points(self):
+        fps = self.calculate_fps()
+        rospy.loginfo("FPS: " + str(fps))
+        self.interpolate_points()
+        self.apply_butterworth_filter()
+        self.process_PCA()
+        self.find_most_periodic_signal()
+        self.calculate_pulse()
+        return
+
+    def calculate_fps(self):
+        timespan = self.refresh_time-self.start_time
+        time_sec = timespan.to_sec()
+        fps = self.refresh_rate/time_sec
+        return fps
+
+    def interpolate_points(self):
+        return
+
+    def apply_butterworth_filter(self):
+        return
+
+    def process_PCA(self):
+        return
+
+    def find_most_periodic_signal(self):
+        return
+
+    def calculate_pulse(self):
+        return
+
     # Helper function to check if ROI is selected correctly
     def show_image_with_mask(self, image, forehead_mask, bottom_mask):
         bottom_dst = cv2.bitwise_and(image, bottom_mask)
@@ -79,8 +112,8 @@ class PulseHeadMovement:
         cv2.waitKey(3)
 
     def pulse_callback(self, mask):
-        rospy.loginfo("Capture frame")
-        self.frame_index += 1
+        self.frame_index = mask.time.seq
+        rospy.loginfo("Capture frame: "+str(self.frame_index))
         try:
             # Convert ROS image to OpenCV image
             original_image = self.bridge.imgmsg_to_cv2(mask.image)
@@ -92,9 +125,13 @@ class PulseHeadMovement:
                     or self.points_to_track is None \
                     or len(self.points_to_track) == 0:
                 if self.y_tracking_signal is not None:
+                    # We already stored some y points from which we want to calculate the pulse
                     rospy.loginfo(self.y_tracking_signal)
+                    self.refresh_time = mask.time.stamp
+                    self.process_saved_points()
                 # get initial tracking points
                 self.prev_image = original_image
+                self.start_time = mask.time.stamp
                 self.points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
                 # rospy.loginfo(self.points_to_track)
                 return

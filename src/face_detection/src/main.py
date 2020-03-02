@@ -16,6 +16,7 @@ class FaceDetector:
         self.topic = topic
         self.show_image_frame = show_image_frame
         self.bridge = CvBridge()
+        self.image_sequence = 0
 
         self.face_publisher = rospy.Publisher("/face_detection/face", Image, queue_size=10)
         self.forehead_publisher = rospy.Publisher("/face_detection/forehead", Image, queue_size=10)
@@ -31,6 +32,7 @@ class FaceDetector:
             rospy.loginfo("Shutting down")
 
     def on_image(self, data):
+        time = rospy.Time.now()
         try:
             # Convert ROS image to OpenCV image
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -106,8 +108,8 @@ class FaceDetector:
             gray_scale_image,
             [(bottom_x, bottom_y, bottom_w, bottom_h)]
         )
-        self.publish_mask(gray_scale_image, forehead_mask, bottom_mask)
-
+        self.publish_mask(gray_scale_image, forehead_mask, bottom_mask, time)
+        self.image_sequence += 1
         if self.show_image_frame is True:
             # Visualize face in original image
             cv2.rectangle(cv_image, (face_x, face_y), (face_x + face_w, face_y + face_h), (255, 0, 0), 2)
@@ -170,7 +172,7 @@ class FaceDetector:
         except CvBridgeError as e:
             rospy.logerr(e)
 
-    def publish_mask(self, cv_image, forehead_mask, bottom_face_mask):
+    def publish_mask(self, cv_image, forehead_mask, bottom_face_mask, time):
         try:
             # Convert OpenCV image back to ROS image
             ros_img = self.bridge.cv2_to_imgmsg(cv_image, "mono8")
@@ -178,6 +180,8 @@ class FaceDetector:
             ros_bottom_mask = self.bridge.cv2_to_imgmsg(bottom_face_mask, "mono8")
             # Create Mask ROS message from original image and roi mask
             ros_msg = Mask()
+            ros_msg.time.stamp = time
+            ros_msg.time.seq = self.image_sequence
             ros_msg.image = ros_img
             ros_msg.forehead_mask = ros_forehead_mask
             ros_msg.bottom_face_mask = ros_bottom_mask

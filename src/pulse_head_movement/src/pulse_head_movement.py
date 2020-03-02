@@ -19,10 +19,12 @@ class PulseHeadMovement:
         self.bridge = CvBridge()
         self.lk_params = dict( winSize  = (35, 35),
                   maxLevel = 2,
-                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
+                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 100, 0.03))
         self.points_to_track = None
         self.prev_image = None
         self.track_len = 32
+        self.refresh_rate = 20
+        self.frame_index = -1
 
     def run(self):
         rospy.Subscriber(self.topic, Mask, self.pulse_callback)
@@ -32,6 +34,7 @@ class PulseHeadMovement:
             rospy.loginfo("Shutting down")
 
     def get_points_to_track(self, image, forehead_mask, bottom_mask):
+        image = cv2.equalizeHist(image)
         # get the tracking points in the bottom face region
         # parameter for feature points in bottom face region. As there are some feature rich points, the quality level
         # is low to include more points
@@ -48,6 +51,22 @@ class PulseHeadMovement:
         feature_points = np.append(feature_points, forehead_points, axis=0)
         return feature_points
 
+    def calculate_optical_flow(self, image):
+        # track points with lucas kanade tracker
+        # make a copy for visualization
+        vis = image.copy()
+        if len(self.points_to_track) > 0:
+            img0, img1 = cv2.equalizeHist(self.prev_image), cv2.equalizeHist(image)
+            p1, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, self.points_to_track, None, **self.lk_params)
+
+            for p in p1:
+                cv2.circle(vis, (p[0][0], p[0][1]), 2, (0, 255, 0), -1)
+
+            self.points_to_track = p1
+            rospy.loginfo(p1)
+            cv2.imshow('lk_track', vis)
+            cv2.waitKey(3)
+
     # Helper function to check if ROI is selected correctly
     def show_image_with_mask(self, image, forehead_mask, bottom_mask):
         bottom_dst = cv2.bitwise_and(image, bottom_mask)
@@ -58,57 +77,24 @@ class PulseHeadMovement:
 
     def pulse_callback(self, mask):
         rospy.loginfo("Capture frame")
+        self.frame_index += 1
         try:
             # Convert ROS image to OpenCV image
             original_image = self.bridge.imgmsg_to_cv2(mask.image)
             bottom_mask = self.bridge.imgmsg_to_cv2(mask.bottom_face_mask)
             forehead_mask = self.bridge.imgmsg_to_cv2(mask.forehead_mask)
-            self.show_image_with_mask(original_image,forehead_mask,bottom_mask)
-            if self.points_to_track is None or len(self.points_to_track)==0:
+            # self.show_image_with_mask(original_image,forehead_mask,bottom_mask)
+            # refresh the points to track after a certain frame rate
+            if self.frame_index % self.refresh_rate == 0:
                 # get initial tracking points
                 self.prev_image = original_image
                 self.points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
                 rospy.loginfo(self.points_to_track)
                 return
-            # plot tracking points
-            #for new in self.points_to_track:
-            #    x = new[0][0]
-            #    y = new[0][1]
-            #    cv2.circle(original_image, (x, y), 5, (25, 0, 0))
-            #cv2.imshow("Feature", original_image)
-            #cv2.waitKey(3)
+            if self.points_to_track is not None:
+                self.calculate_optical_flow(original_image)
+            self.prev_image = original_image
 
-            # track points with lucas kanade tracker
-            t0 = time.time()
-            t1, t2, t3 = 0, 0, 0
-            # make a copy for visualization
-            vis = original_image.copy()
-            if len(self.points_to_track) > 0:
-                img0, img1 = self.prev_image, original_image
-                # get tracking points
-                t1 = time.time() - t0
-                p0 = np.float32([tr[-1] for tr in self.points_to_track]).reshape(-1, 1, 2)
-                # apply Lucas-Kanade tracker with optical flow
-                p1, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, p0, None, **self.lk_params)
-                p0r, st, err = cv2.calcOpticalFlowPyrLK(img1, img0, p1, None, **self.lk_params)
-                t2 = time.time() - t0
-                d = abs(p0 - p0r).reshape(-1, 2).max(-1)
-                good = d < 1
-                new_tracks = []
-                for tr, (x, y), good_flag in zip(self.points_to_track, p1.reshape(-1, 2), good):
-                    if not good_flag:
-                        continue
-                    np.append(tr,(x, y))
-                    if len(tr) > self.track_len:
-                        del tr[0]
-                    new_tracks.append(tr)
-                    cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
-
-                t3 = time.time() - t0
-                self.points_to_track = new_tracks
-                cv2.polylines(vis, [np.int32(tr) for tr in self.points_to_track], False, (0, 255, 0))
-                cv2.imshow('lk_track', vis)
-                cv2.waitKey(3)
         except CvBridgeError as e:
             rospy.logerr(e)
             return

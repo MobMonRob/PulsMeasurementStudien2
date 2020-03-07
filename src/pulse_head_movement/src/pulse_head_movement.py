@@ -11,6 +11,7 @@ from scipy import interpolate
 from scipy.signal import butter, lfilter, filtfilt
 from cv_bridge import CvBridge, CvBridgeError
 from face_detection.msg import Mask
+from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import time
 
@@ -126,8 +127,8 @@ class PulseHeadMovement:
         rospy.loginfo("FPS: " + str(self.fps))
         interpolated_points = self.interpolate_points()
         filtered_signal = self.apply_butterworth_filter(interpolated_points)
-        self.process_PCA()
-        self.find_most_periodic_signal()
+        pca_array = self.process_PCA(filtered_signal)
+        self.find_most_periodic_signal(pca_array)
         self.calculate_pulse()
         return
 
@@ -165,6 +166,7 @@ class PulseHeadMovement:
         lowcut = 0.75
         highcut = 5
         filtered_signal = np.empty([np.size(input_signal, 0), np.size(input_signal, 1)])
+        rospy.loginfo("rows:"+str(np.size(input_signal, 0)))
         point_index = 0
         for point in input_signal:
             filtered_points = butter_bandpass_filter(point, lowcut, highcut, sample_rate, order=5)
@@ -182,10 +184,21 @@ class PulseHeadMovement:
         # plt.show()
         return filtered_signal
 
-    def process_PCA(self):
-        return
+    def process_PCA(self, filtered_signal):
+        # sample_rate = len(filtered_signal[0]) / (self.time_array[-1] - self.time_array[0])
+        filtered_signal = filtered_signal.transpose()
+        pca = PCA(n_components=5)
+        pca_array=pca.fit_transform(filtered_signal)
+        pca_array = pca_array.transpose()
+        # stepsize = 1. / sample_rate
+        # xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
+        # plt.figure(figsize=(6.5, 4))
+        # for row in pca_array:
+        #     plt.plot(xs, row, label="S")
+        # plt.show()
+        return pca_array
 
-    def find_most_periodic_signal(self):
+    def find_most_periodic_signal(self, pca_array):
         return
 
     def calculate_pulse(self):

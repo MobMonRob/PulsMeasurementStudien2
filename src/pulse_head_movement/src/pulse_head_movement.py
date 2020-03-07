@@ -8,7 +8,7 @@ import numpy as np
 import cv2
 import rospy
 from scipy import interpolate
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, lfilter, filtfilt
 from cv_bridge import CvBridge, CvBridgeError
 from face_detection.msg import Mask
 import matplotlib.pyplot as plt
@@ -24,7 +24,7 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
 
 def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-    y = lfilter(b, a, data)
+    y = filtfilt(b, a, data)
     return y
 
 class PulseHeadMovement:
@@ -94,9 +94,13 @@ class PulseHeadMovement:
         forehead_points = cv2.goodFeaturesToTrack(image, mask=forehead_mask, **forehead_feature_params)
         forehead_points = np.array(forehead_points, dtype=np.float32)
         # put tracking points of both regions in one array and return feature points
-        feature_points = np.append(feature_points, forehead_points, axis=0)
+        if feature_points.ndim == forehead_points.ndim:
+            feature_points = np.append(feature_points, forehead_points, axis=0)
+        elif feature_points.size > 0:
+            pass
+        elif forehead_points.size > 0:
+            feature_points = forehead_points
         self.y_tracking_signal = np.empty([len(feature_points), self.refresh_rate-1], dtype=np.float32)
-        self.set_start_time = True
         return feature_points
 
     def calculate_optical_flow(self, image, time):
@@ -121,7 +125,7 @@ class PulseHeadMovement:
         self.calculate_fps()
         rospy.loginfo("FPS: " + str(self.fps))
         interpolated_points = self.interpolate_points()
-        self.apply_butterworth_filter(interpolated_points)
+        filtered_signal = self.apply_butterworth_filter(interpolated_points)
         self.process_PCA()
         self.find_most_periodic_signal()
         self.calculate_pulse()
@@ -129,7 +133,7 @@ class PulseHeadMovement:
 
     def calculate_fps(self):
         timespan = self.time_array[-1]-self.time_array[0]
-        rospy.loginfo(timespan)
+        rospy.loginfo("Measured timespan: "+str(timespan))
         self.fps = self.refresh_rate/timespan
 
     def interpolate_points(self):
@@ -138,7 +142,6 @@ class PulseHeadMovement:
         xs = np.arange(self.time_array[0], self.time_array[-1],stepsize)
         interpolated_points = np.empty([np.size(self.y_tracking_signal,0), np.size(xs)])
         point_index = 0
-        rospy.loginfo(len(self.y_tracking_signal[0]))
         for row in self.y_tracking_signal:
             cs = interpolate.interp1d(self.time_array, row, kind="cubic",copy=False,axis=0)
             array_interpolated = cs(xs)
@@ -147,30 +150,37 @@ class PulseHeadMovement:
                 interpolated_points[point_index][interpolated_point_index] = point
                 interpolated_point_index += 1
             point_index+=1
-        rospy.loginfo(len(interpolated_points[0]))
+        #rospy.loginfo(len(interpolated_points[0])/(self.time_array[-1]-self.time_array[0]))
         # np.savetxt("/home/studienarbeit/Dokumente/y_points.csv", interpolated_points, delimiter=";")
         # plt.figure(figsize=(6.5, 4))
-        # plt.plot(self.time_array, self.y_tracking_signal[0],label="points")
+        # plt.plot(self.time_array, self.y_tracking_signal[8],label="points")
         # plt.figure(figsize=(6.5, 4))
-        # plt.plot(xs, interpolated_points[0], label="S")
+        # plt.plot(xs, interpolated_points[8], label="S")
         # plt.show()
         return interpolated_points
 
     def apply_butterworth_filter(self, input_signal):
-        # sos = signal.butter(6, [0.75,5], 'bandpass', fs=250, output='sos')
-        # filtered_signal = signal.sosfilt(sos, input_signal)
-        sample_rate = 250.0
+        sample_rate = len(input_signal[0])/(self.time_array[-1]-self.time_array[0])
+        rospy.loginfo("sample rate: "+str(sample_rate))
         lowcut = 0.75
-        highcut = 5.0
-        filtered_signal = butter_bandpass_filter(input_signal, lowcut, highcut, sample_rate, order=5)
-        np.savetxt("/home/studienarbeit/Dokumente/y_points_filtered.csv", filtered_signal, delimiter=";")
-        stepsize = 1. / sample_rate
-        xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
-        # rospy.loginfo(filtered_signal)
+        highcut = 5
+        filtered_signal = np.empty([np.size(input_signal, 0), np.size(input_signal, 1)])
+        point_index = 0
+        for point in input_signal:
+            filtered_points = butter_bandpass_filter(point, lowcut, highcut, sample_rate, order=5)
+            filtered_point_index = 0
+            for filtered_point in filtered_points:
+                filtered_signal[point_index][filtered_point_index] = filtered_point
+                filtered_point_index+=1
+            point_index += 1
+        # np.savetxt("/home/studienarbeit/Dokumente/y_points_filtered.csv", filtered_signal, delimiter=";")
+        input_signal = None
+        # stepsize = 1. / sample_rate
+        # xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
         # plt.figure(figsize=(6.5, 4))
-        # plt.plot(xs, filtered_signal[0], label="S")
+        # plt.plot(xs, filtered_signal[6], label="S")
         # plt.show()
-        return
+        return filtered_signal
 
     def process_PCA(self):
         return

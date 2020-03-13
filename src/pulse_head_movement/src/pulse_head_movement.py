@@ -8,12 +8,12 @@ import numpy as np
 import cv2
 import rospy
 from scipy import interpolate
-from scipy.signal import butter, lfilter, filtfilt
+from scipy.signal import butter, lfilter, filtfilt, find_peaks
 from cv_bridge import CvBridge, CvBridgeError
 from face_detection.msg import Mask
 from sklearn.decomposition import PCA
+import pandas as pd
 import matplotlib.pyplot as plt
-import time
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
@@ -39,7 +39,7 @@ class PulseHeadMovement:
         self.points_to_track = None
         self.prev_image = None
         self.track_len = 32
-        self.refresh_rate = 50
+        self.refresh_rate = 100
         self.fps = 5
         self.frame_index = 0
         self.y_tracking_signal = None
@@ -128,8 +128,8 @@ class PulseHeadMovement:
         interpolated_points = self.interpolate_points()
         filtered_signal = self.apply_butterworth_filter(interpolated_points)
         pca_array = self.process_PCA(filtered_signal)
-        self.find_most_periodic_signal(pca_array)
-        self.calculate_pulse()
+        signal = self.find_most_periodic_signal(pca_array)
+        self.calculate_pulse(signal)
         return
 
     def calculate_fps(self):
@@ -185,7 +185,7 @@ class PulseHeadMovement:
         return filtered_signal
 
     def process_PCA(self, filtered_signal):
-        # sample_rate = len(filtered_signal[0]) / (self.time_array[-1] - self.time_array[0])
+        sample_rate = len(filtered_signal[0]) / (self.time_array[-1] - self.time_array[0])
         filtered_signal = filtered_signal.transpose()
         pca = PCA(n_components=5)
         pca_array=pca.fit_transform(filtered_signal)
@@ -199,9 +199,35 @@ class PulseHeadMovement:
         return pca_array
 
     def find_most_periodic_signal(self, pca_array):
-        return
+        highest_correlation = 0
+        best_signal = None
+        for signal in pca_array:
+            series = pd.Series(signal)
+            autocorrelation = series.autocorr()
+            #rospy.loginfo(autocorrelation)
+            if autocorrelation > highest_correlation:
+                best_signal = signal
+        # sample_rate = len(pca_array[0]) / (self.time_array[-1] - self.time_array[0])
+        # stepsize = 1. / sample_rate
+        # pca_array = None
+        # xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
+        # plt.figure(figsize=(6.5, 4))
+        # plt.plot(xs, autocorrelation, label="S")
+        # plt.show()
+        return best_signal
 
-    def calculate_pulse(self):
+    def calculate_pulse(self, signal):
+        # sample_rate = len(signal) / (self.time_array[-1] - self.time_array[0])
+        # stepsize = 1. / sample_rate
+        # xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
+        # plt.figure(figsize=(6.5, 4))
+        # plt.plot(xs, signal, label="S")
+        # plt.show()
+        peaks,_ = find_peaks(signal, prominence=(0.1,None))
+        rospy.loginfo(len(peaks))
+        measured_time = self.time_array[-1] - self.time_array[0]
+        pulse = (len(peaks)/measured_time)*60
+        rospy.loginfo("Pulse: "+str(pulse))
         return
 
     # Helper function to check if ROI is selected correctly

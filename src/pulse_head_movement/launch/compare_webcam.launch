@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find pulse_head_movement)/launch/webcam.launch"/>
+    <node name="pulse_plot" pkg="plotjuggler" type="PlotJuggler"/>
+</launch>

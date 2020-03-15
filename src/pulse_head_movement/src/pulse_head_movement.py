@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import cv2
 import rospy
+from pulse_chest_strap.msg import pulse
 from scipy import interpolate
 from scipy.signal import butter, lfilter, filtfilt, find_peaks
 from cv_bridge import CvBridge, CvBridgeError
@@ -33,6 +34,9 @@ class PulseHeadMovement:
     def __init__(self, topic):
         self.topic = topic
         self.bridge = CvBridge()
+        # set up ROS publisher and node
+        self.pub = rospy.Publisher('head_movement_pulse', pulse, queue_size=10)
+        self.seq = 0
         self.lk_params = dict( winSize  = (35, 35),
                   maxLevel = 2,
                   criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 100, 0.03))
@@ -44,6 +48,7 @@ class PulseHeadMovement:
         self.frame_index = 0
         self.y_tracking_signal = None
         self.time_array = np.empty(self.refresh_rate-1)
+        self.publish_time = None
 
     def run(self):
         rospy.Subscriber(self.topic, Mask, self.pulse_callback)
@@ -53,7 +58,6 @@ class PulseHeadMovement:
             rospy.loginfo("Shutting down")
 
     def pulse_callback(self, mask):
-        self.frame_index = mask.time.seq
         rospy.loginfo("Capture frame: " + str(self.frame_index))
         try:
             # Convert ROS image to OpenCV image
@@ -71,10 +75,14 @@ class PulseHeadMovement:
                 # get initial tracking points
                 self.prev_image = original_image
                 self.points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
+                self.frame_index += 1
                 return
+            if self.frame_index % self.refresh_rate == self.refresh_rate-1:
+                self.publish_time = mask.time.stamp
             if self.points_to_track is not None:
                 self.calculate_optical_flow(original_image, mask.time.stamp)
             self.prev_image = original_image
+            self.frame_index += 1
 
         except CvBridgeError as e:
             rospy.logerr(e)
@@ -129,7 +137,8 @@ class PulseHeadMovement:
         filtered_signal = self.apply_butterworth_filter(interpolated_points)
         pca_array = self.process_PCA(filtered_signal)
         signal = self.find_most_periodic_signal(pca_array)
-        self.calculate_pulse(signal)
+        pulse = self.calculate_pulse(signal)
+        self.publish_pulse(pulse)
         return
 
     def calculate_fps(self):
@@ -140,6 +149,8 @@ class PulseHeadMovement:
     def interpolate_points(self):
         sample_rate = 250
         stepsize = 1./sample_rate
+        print(self.time_array[0])
+        print(self.time_array[-1])
         xs = np.arange(self.time_array[0], self.time_array[-1],stepsize)
         interpolated_points = np.empty([np.size(self.y_tracking_signal,0), np.size(xs)])
         point_index = 0
@@ -223,12 +234,21 @@ class PulseHeadMovement:
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, signal, label="S")
         # plt.show()
-        peaks,_ = find_peaks(signal, prominence=(0.1,None))
+        peaks,_ = find_peaks(signal, prominence=(0.03,None))
         rospy.loginfo(len(peaks))
         measured_time = self.time_array[-1] - self.time_array[0]
         pulse = (len(peaks)/measured_time)*60
+        pulse = np.int16(pulse)
         rospy.loginfo("Pulse: "+str(pulse))
-        return
+        return pulse
+
+    def publish_pulse(self, pulse_value):
+        msg_to_publish = pulse()
+        msg_to_publish.pulse = pulse_value
+        msg_to_publish.time.stamp = self.publish_time
+        msg_to_publish.time.seq = self.seq
+        self.pub.publish(msg_to_publish)
+        self.seq += 1
 
     # Helper function to check if ROI is selected correctly
     def show_image_with_mask(self, image, forehead_mask, bottom_mask):

@@ -43,7 +43,7 @@ class PulseHeadMovement:
         self.points_to_track = None
         self.prev_image = None
         self.track_len = 32
-        self.refresh_rate = 100
+        self.refresh_rate = 500
         self.fps = 5
         self.frame_index = 0
         self.y_tracking_signal = None
@@ -93,7 +93,7 @@ class PulseHeadMovement:
         # get the tracking points in the bottom face region
         # parameter for feature points in bottom face region. As there are some feature rich points, the quality level
         # is low to include more points
-        bottom_feature_params = dict(maxCorners=100, qualityLevel=0.05, minDistance=7, blockSize=7)
+        bottom_feature_params = dict(maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
         bottom_points = cv2.goodFeaturesToTrack(image, mask=bottom_mask, **bottom_feature_params)
         feature_points = np.array(bottom_points, dtype=np.float32)
         # get the tracking points in the forehead region
@@ -223,7 +223,7 @@ class PulseHeadMovement:
         # pca_array = None
         # xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
         # plt.figure(figsize=(6.5, 4))
-        # plt.plot(xs, autocorrelation, label="S")
+        # plt.plot(xs, best_signal, label="S")
         # plt.show()
         return best_signal
 
@@ -234,7 +234,7 @@ class PulseHeadMovement:
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, signal, label="S")
         # plt.show()
-        peaks,_ = find_peaks(signal, prominence=(0.03,None))
+        peaks,_ = find_peaks(signal, prominence=(0.5,None))
         rospy.loginfo(len(peaks))
         measured_time = self.time_array[-1] - self.time_array[0]
         pulse = (len(peaks)/measured_time)*60

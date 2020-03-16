@@ -13,7 +13,7 @@
         <!-- set buffer queue size of frame capturing to (1 means we want the latest frame only) -->
         <arg name="buffer_queue_size" value="1" />
         <!-- throttling the querying of frames to -->
-        <arg name="fps" value="5" />
+        <arg name="fps" value="30" />
         <!-- setting frame_id -->
         <arg name="frame_id" value="webcam_optical_frame" />
         <!-- camera info loading, take care as it needs the "file:///" at the start , e.g.:

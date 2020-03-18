@@ -13,9 +13,10 @@ import time
 
 class FaceDetector:
 
-    def __init__(self, topic, show_image_frame):
+    def __init__(self, topic, show_image_frame, video_file):
         self.topic = topic
         self.show_image_frame = show_image_frame
+        self.video_file = video_file
         self.bridge = CvBridge()
         self.image_sequence = 0
         self.start = 0
@@ -27,17 +28,23 @@ class FaceDetector:
         self.mask_publisher = rospy.Publisher("/face_detection/mask", Mask, queue_size=10)
 
     def run(self):
-        print("Start FPS measurement")
         self.start = time.time()
 
-        rospy.Subscriber(self.topic, Image, self.on_image)
+        if self.video_file and self.video_file != "None":
+            capture = cv2.VideoCapture(self.video_file)
 
-        try:
+            while capture.isOpened() and not rospy.is_shutdown():
+                ret, frame = capture.read()
+                self.on_image(frame, convert=False)
+
+            capture.release()
+        else:
+            rospy.Subscriber(self.topic, Image, self.on_image)
             rospy.spin()
-        except KeyboardInterrupt:
-            rospy.loginfo("Shutting down")
 
-    def on_image(self, data):
+        rospy.loginfo("Shutting down")
+
+    def on_image(self, data, convert=True):
         self.frames += 1
 
         if self.frames is 120:
@@ -51,12 +58,15 @@ class FaceDetector:
             self.start = time.time()
             self.frames = 0
 
-        try:
-            # Convert ROS image to OpenCV image
-            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError as e:
-            rospy.logerr(e)
-            return
+        if convert:
+            try:
+                # Convert ROS image to OpenCV image
+                cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            except CvBridgeError as e:
+                rospy.logerr(e)
+                return
+        else:
+            cv_image = data
 
         # Get gray scale image from OpenCV
         gray_scale_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
@@ -128,6 +138,7 @@ class FaceDetector:
         )
         self.publish_mask(gray_scale_image, forehead_mask, bottom_mask)
         self.image_sequence += 1
+
         if self.show_image_frame is True:
             # Visualize face in original image
             cv2.rectangle(cv_image, (face_x, face_y), (face_x + face_w, face_y + face_h), (255, 0, 0), 2)
@@ -214,14 +225,17 @@ def main(args):
     rospy.init_node('face_detection', anonymous=True, log_level=rospy.DEBUG)
 
     # Get ROS topic from launch parameter
-    # topic = rospy.get_param("~topic", "/pylon_camera_node/image_raw")
     topic = rospy.get_param("~topic", "/webcam/image_raw")
-    show_image_frame = rospy.get_param("~show_image_frame", False)
     rospy.loginfo("Listening on topic '" + topic + "'")
+
+    show_image_frame = rospy.get_param("~show_image_frame", False)
     rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
 
+    video_file = rospy.get_param("~video_file", None)
+    rospy.loginfo("Video file input: '" + str(video_file) + "'")
+
     # Start face detection
-    face_detector = FaceDetector(topic, show_image_frame)
+    face_detector = FaceDetector(topic, show_image_frame, video_file)
     face_detector.run()
 
     # Destroy windows on close

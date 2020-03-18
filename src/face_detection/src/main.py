@@ -13,10 +13,9 @@ import time
 
 class FaceDetector:
 
-    def __init__(self, topic, show_image_frame, video_file):
+    def __init__(self, topic, show_image_frame):
         self.topic = topic
         self.show_image_frame = show_image_frame
-        self.video_file = video_file
         self.bridge = CvBridge()
         self.image_sequence = 0
         self.start = 0
@@ -29,19 +28,8 @@ class FaceDetector:
 
     def run(self):
         self.start = time.time()
-
-        if self.video_file and self.video_file != "None":
-            capture = cv2.VideoCapture(self.video_file)
-
-            while capture.isOpened() and not rospy.is_shutdown():
-                ret, frame = capture.read()
-                self.on_image(frame, convert=False)
-
-            capture.release()
-        else:
-            rospy.Subscriber(self.topic, Image, self.on_image)
-            rospy.spin()
-
+        rospy.Subscriber(self.topic, Image, self.on_image)
+        rospy.spin()
         rospy.loginfo("Shutting down")
 
     def on_image(self, data, convert=True):
@@ -231,11 +219,8 @@ def main(args):
     show_image_frame = rospy.get_param("~show_image_frame", False)
     rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
 
-    video_file = rospy.get_param("~video_file", None)
-    rospy.loginfo("Video file input: '" + str(video_file) + "'")
-
     # Start face detection
-    face_detector = FaceDetector(topic, show_image_frame, video_file)
+    face_detector = FaceDetector(topic, show_image_frame)
     face_detector.run()
 
     # Destroy windows on close

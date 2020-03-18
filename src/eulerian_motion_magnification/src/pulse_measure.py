@@ -6,9 +6,6 @@ import os
 
 import scipy.fftpack as fftpack
 
-import matplotlib.pyplot as plt
-from scipy.signal import lfilter
-
 
 def build_gaussian_pyramid(frame, level=3):
     s = frame.copy()
@@ -84,7 +81,7 @@ def load_video(levels, roi):
         video_array.append(gaussian_frame)
         count += 1
         if count == 300:
-            print('reached 300 frames')
+            print('reached 600 frames')
     print(count)
     return np.asarray(video_array, dtype=np.float32), fps
 

@@ -6,9 +6,6 @@ import os
 
 import scipy.fftpack as fftpack
 
-import matplotlib.pyplot as plt
-from scipy.signal import lfilter
-
 
 def build_gaussian_pyramid(frame, level=3):
     s = frame.copy()
@@ -68,41 +65,42 @@ def show_video(final):
             break
 
 
-def load_video(levels, roi):
-    fps = 30
-    video_array = []
-    count = 0
-
-    while count <= 300:
-        frame = roi
-        cv2.imshow("new", frame)
-        normalized = cv2.normalize(frame.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-        cropped = cv2.resize(normalized, (200, 200))
-        gaussian_frame = build_gaussian_frame(cropped, levels)
-        video_array.append(gaussian_frame)
-        count += 1
-        if count == 300:
-            print('reached 300 frames')
-    print(count)
-    return np.asarray(video_array, dtype=np.float32), fps
-
-
 class PulseMeasurement:
 
     def __init__(self):
-        pass
+        self.count = 0
+        self.levels = 3
+        self.low = 0.8
+        self.high = 4
+        self.amplification = 20
+
+        self.fps = 30
+        self.video_array = []
 
     def run(self, roi):
-        levels = 3
-        low = 0.8
-        high = 4
-        amplification = 20
-        t, fps = load_video(levels, roi)
-        filtered_tensor = temporal_ideal_filter(t, low, high, fps)
-        amplified_video = amplify_video(filtered_tensor, amplify=amplification)
-        upsampled_final_t = upsample_final_video(t, levels)
-        upsampled_final_amplified = upsample_final_video(amplified_video, levels)
-        final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)
-        show_video(final)
+
+        if self.count < 300:
+            frame = roi
+            normalized = cv2.normalize(frame.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
+            cropped = cv2.resize(normalized, (200, 200))
+            gaussian_frame = build_gaussian_frame(cropped, self.levels)
+            self.video_array.append(gaussian_frame)
+            self.count += 1
+            if self.count == 100:
+                print('reached 100 frames')
+                t = np.asarray(self.video_array, dtype=np.float32)
+                print('converted as np array')
+                filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
+                print('applied filter')
+                amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
+                print('amplified')
+                upsampled_final_t = upsample_final_video(t, self.levels)
+                print('upsampled')
+                upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
+                print('upsampled')
+                final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)
+                print('reconstruted')
+                show_video(final)
+                self.count = 0
+                self.video_array = []
+        print(self.count)

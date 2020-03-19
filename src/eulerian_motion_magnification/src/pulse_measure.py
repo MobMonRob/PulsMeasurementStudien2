@@ -59,7 +59,8 @@ def reconstruct_vido(amplified_video, original_video, levels=3):
 
 def show_video(final):
     for image in final:
-        time.sleep(0.1)
+        time.sleep(0.15)
+        print ('print')
         cv2.imshow("final", image)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -79,14 +80,14 @@ class PulseMeasurement:
 
     def run(self, roi):
 
-        if self.count < 300:
+        if self.count < 40:
             frame = roi
             normalized = cv2.normalize(frame.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
             cropped = cv2.resize(normalized, (200, 200))
             gaussian_frame = build_gaussian_frame(cropped, self.levels)
             self.video_array.append(gaussian_frame)
             self.count += 1
-            if self.count == 100:
+            if self.count == 40:
                 print('reached 100 frames')
                 t = np.asarray(self.video_array, dtype=np.float32)
                 print('converted as np array')

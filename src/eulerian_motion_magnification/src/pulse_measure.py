@@ -5,6 +5,7 @@ import cv2
 import os
 
 import scipy.fftpack as fftpack
+from scipy.signal import butter, filtfilt
 
 
 def build_gaussian_pyramid(frame, level=3):
@@ -22,16 +23,23 @@ def build_gaussian_frame(normalized, level):
     return gaussian_frame
 
 
-def temporal_ideal_filter(gau_video, low, high, fps, axis=0):
+def temporal_ideal_filter(gau_video, lowcut, highcut, fps, axis=0):
     fft = fftpack.fft(gau_video, axis=axis)
-    frequencies = fftpack.fftfreq(gau_video.shape[0], d=1.0 / fps)
-    bound_low = (np.abs(frequencies - low)).argmin()
-    bound_high = (np.abs(frequencies - high)).argmin()
+    frequencies = fftpack.fftfreq(gau_video.shape[0], d=1.0 /fps)
+    bound_low = (np.abs(frequencies - lowcut)).argmin()
+    bound_high = (np.abs(frequencies - highcut)).argmin()
     fft[:bound_low] = 0
     fft[bound_high:-bound_high] = 0
-    fft[-bound_low] = 0
-    iff = fftpack.ifft(fft, axis=axis)
+    fft[-bound_low:] = 0
+    iff = fftpack.ifft(fft, axis = axis)
     return np.abs(iff)
+    #nyq = 0.5 * fps
+    #low = lowcut / nyq
+    #high = highcut / nyq
+    #b, a = butter(order, [low, high], btype='band', analog=False)
+    #y = filtfilt(b, a, gau_video, axis=2, padtype=None)
+    #return y
+
 
 
 def amplify_video(filtered_tensor, amplify):
@@ -73,35 +81,35 @@ class PulseMeasurement:
 
     def __init__(self):
         self.count = 0
-        self.levels = 3
-        self.low = 0.6
+        self.levels = 2
+        self.low = 0.8
         self.high = 1.5
-        self.amplification = 20
+        self.amplification = 50
 
-        self.fps = 10
+        self.fps = 20
         self.video_array = []
         self.start_time = 0
         self.end_time = 0
-        self.butter_size = 20
+        self.buffer_size = 100
 
     def calculate_fps(self):
         time_difference = self.end_time - self.start_time
-        samplerate = self.butter_size / time_difference
+        samplerate = self.buffer_size / time_difference
         print(samplerate)
         return samplerate
 
     def run(self, roi):
 
-        if self.count < self.butter_size:
+        if self.count < self.buffer_size:
             frame = roi
             normalized = cv2.normalize(frame.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
             cropped = cv2.resize(normalized, (200, 200))
             gaussian_frame = build_gaussian_frame(cropped, self.levels)
             self.video_array.append(gaussian_frame)
             self.count += 1
-            if self.count == self.butter_size:
+            if self.count == self.buffer_size:
                 self.end_time = time.time()
-                if(self.start_time != 0):
+                if self.start_time != 0:
                     self.fps = self.calculate_fps()
                 else:
                     self.fps = 23
@@ -126,4 +134,3 @@ class PulseMeasurement:
                 self.count = 0
                 self.video_array = []
                 self.start_time = time.time()
-        print(self.count)

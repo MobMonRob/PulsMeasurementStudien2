@@ -35,7 +35,11 @@ def temporal_ideal_filter(gau_video, low, high, fps, axis=0):
 
 
 def amplify_video(filtered_tensor, amplify):
-    return filtered_tensor * amplify
+    npa = np.asarray(filtered_tensor, dtype=np.float32)
+    npa[:, :, :, 0] = np.multiply(npa[:, :, :, 0], amplify)
+    npa[:, :, :, 1] = np.multiply(npa[:, :, :, 1], amplify)
+    npa[:, :, :, 2] = np.multiply(npa[:, :, :, 2], amplify)
+    return npa
 
 
 def upsample_final_video(final, levels):
@@ -72,8 +76,8 @@ class PulseMeasurement:
         self.count = 0
         self.levels = 3
         self.low = 0.8
-        self.high = 4
-        self.amplification = 20
+        self.high = 1.5
+        self.amplification = 40
 
         self.fps = 30
         self.video_array = []
@@ -93,12 +97,16 @@ class PulseMeasurement:
                 print('converted as np array')
                 filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
                 print('applied filter')
+                print(np.asarray(filtered_tensor, dtype=np.float32).shape)
                 amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
                 print('amplified')
+                print(np.asarray(amplified_video, dtype=np.float32).shape)
                 upsampled_final_t = upsample_final_video(t, self.levels)
-                print('upsampled')
+                print('upsampled original')
+                print(np.asarray(upsampled_final_t, dtype=np.float32).shape)
                 upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
-                print('upsampled')
+                print('upsampled amplified')
+                print(np.asarray(upsampled_final_amplified, dtype=np.float32).shape)
                 final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)
                 print('reconstruted')
                 show_video(final)

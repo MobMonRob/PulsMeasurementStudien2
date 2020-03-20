@@ -64,7 +64,6 @@ def reconstruct_vido(amplified_video, original_video, levels=3):
 def show_video(final):
     for image in final:
         time.sleep(0.15)
-        print ('print')
         cv2.imshow("final", image)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -75,23 +74,37 @@ class PulseMeasurement:
     def __init__(self):
         self.count = 0
         self.levels = 3
-        self.low = 0.8
+        self.low = 0.6
         self.high = 1.5
-        self.amplification = 40
+        self.amplification = 20
 
-        self.fps = 30
+        self.fps = 10
         self.video_array = []
+        self.start_time = 0
+        self.end_time = 0
+        self.butter_size = 20
+
+    def calculate_fps(self):
+        time_difference = self.end_time - self.start_time
+        samplerate = self.butter_size / time_difference
+        print(samplerate)
+        return samplerate
 
     def run(self, roi):
 
-        if self.count < 40:
+        if self.count < self.butter_size:
             frame = roi
             normalized = cv2.normalize(frame.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
             cropped = cv2.resize(normalized, (200, 200))
             gaussian_frame = build_gaussian_frame(cropped, self.levels)
             self.video_array.append(gaussian_frame)
             self.count += 1
-            if self.count == 40:
+            if self.count == self.butter_size:
+                self.end_time = time.time()
+                if(self.start_time != 0):
+                    self.fps = self.calculate_fps()
+                else:
+                    self.fps = 23
                 print('reached 100 frames')
                 t = np.asarray(self.video_array, dtype=np.float32)
                 print('converted as np array')
@@ -112,4 +125,5 @@ class PulseMeasurement:
                 show_video(final)
                 self.count = 0
                 self.video_array = []
+                self.start_time = time.time()
         print(self.count)

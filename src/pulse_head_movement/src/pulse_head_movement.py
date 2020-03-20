@@ -44,7 +44,7 @@ class PulseHeadMovement:
         self.prev_image = None
         self.track_len = 32
         self.refresh_rate = 500
-        self.fps = 5
+        self.fps = 0
         self.frame_index = 0
         self.y_tracking_signal = None
         self.time_array = np.empty(self.refresh_rate-1)
@@ -68,10 +68,12 @@ class PulseHeadMovement:
             # refresh the points to track after a certain frame rate
             if self.frame_index % self.refresh_rate == 0 \
                     or self.points_to_track is None \
-                    or len(self.points_to_track) == 0:
+                    or len(self.points_to_track) < 5:
                 if self.y_tracking_signal is not None:
                     # We already stored some y points from which we want to calculate the pulse
                     self.process_saved_points()
+                if self.points_to_track is not None and len(self.points_to_track) < 5:
+                    self.frame_index -= 1
                 # get initial tracking points
                 self.prev_image = original_image
                 self.points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
@@ -93,13 +95,13 @@ class PulseHeadMovement:
         # get the tracking points in the bottom face region
         # parameter for feature points in bottom face region. As there are some feature rich points, the quality level
         # is low to include more points
-        bottom_feature_params = dict(maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
+        bottom_feature_params = dict(maxCorners=100, qualityLevel=0.01, minDistance=7, blockSize=7)
         bottom_points = cv2.goodFeaturesToTrack(image, mask=bottom_mask, **bottom_feature_params)
         feature_points = np.array(bottom_points, dtype=np.float32)
         # get the tracking points in the forehead region
         # parameter for feature points in forehead region. As most points are not very feature rich, the quality level
         # is high to enable better tracking with lk tracker
-        forehead_feature_params = dict(maxCorners=100, qualityLevel=0.6, minDistance=7, blockSize=7)
+        forehead_feature_params = dict(maxCorners=100, qualityLevel=0.01, minDistance=7, blockSize=7)
         forehead_points = cv2.goodFeaturesToTrack(image, mask=forehead_mask, **forehead_feature_params)
         forehead_points = np.array(forehead_points, dtype=np.float32)
         # put tracking points of both regions in one array and return feature points
@@ -109,7 +111,10 @@ class PulseHeadMovement:
             pass
         elif forehead_points.size > 0:
             feature_points = forehead_points
-        self.y_tracking_signal = np.empty([len(feature_points), self.refresh_rate-1], dtype=np.float32)
+        if len(feature_points) < 5:
+            self.y_tracking_signal = None
+        else:
+            self.y_tracking_signal = np.empty([len(feature_points), self.refresh_rate-1], dtype=np.float32)
         return feature_points
 
     def calculate_optical_flow(self, image, time):
@@ -234,7 +239,7 @@ class PulseHeadMovement:
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, signal, label="S")
         # plt.show()
-        peaks,_ = find_peaks(signal, prominence=(0.5,None))
+        peaks,_ = find_peaks(signal,prominence=(0.5,None))
         rospy.loginfo(len(peaks))
         measured_time = self.time_array[-1] - self.time_array[0]
         pulse = (len(peaks)/measured_time)*60

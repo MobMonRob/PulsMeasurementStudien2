@@ -105,7 +105,7 @@ class PulseHeadMovement:
                     # rospy.loginfo("point: "+ str(point_index) + "position: "+str(((self.frame_index%self.publish_rate)-1)+point_index*self.publish_rate))
                     point_index += 1
                 current_points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
-                self.edit_buffer(current_points_to_track)
+                self.edit_buffer(current_points_to_track, mask.time.stamp)
                 self.frame_index += 1
                 self.prev_image = original_image
                 return
@@ -127,14 +127,14 @@ class PulseHeadMovement:
             rospy.logerr(e)
             return
 
-    def edit_buffer(self, current_points_to_track):
+    def edit_buffer(self, current_points_to_track, publish_time):
         if len(self.buffer_points) < self.refresh_rate/self.publish_rate:
             rospy.loginfo("array not full yet ")
         else:
             self.buffer_points.pop()
             points_calculate_pulse = self.buffered_y_tracking_signal.pop()
             current_time_array = self.buffered_time_arrays.pop()
-            self.process_saved_points(points_calculate_pulse, current_time_array)
+            self.process_saved_points(points_calculate_pulse, current_time_array, publish_time)
         self.buffer_points.insert(0, current_points_to_track)
         self.buffered_y_tracking_signal.insert(0, np.empty([len(current_points_to_track), self.refresh_rate-1],
                                                       dtype=np.float32))
@@ -179,7 +179,7 @@ class PulseHeadMovement:
         cv2.waitKey(3)
         return new_points
 
-    def process_saved_points(self, y_tracking_signal, time_array):
+    def process_saved_points(self, y_tracking_signal, time_array, publish_time):
         self.calculate_fps(time_array)
         rospy.loginfo("FPS: " + str(self.fps))
         interpolated_points = self.interpolate_points(y_tracking_signal, time_array)
@@ -187,7 +187,7 @@ class PulseHeadMovement:
         pca_array = self.process_PCA(filtered_signal, time_array)
         signal = self.find_most_periodic_signal(pca_array)
         pulse = self.calculate_pulse(signal, time_array)
-        self.publish_pulse(pulse)
+        self.publish_pulse(pulse, publish_time)
         return
 
     def calculate_fps(self, time_array):
@@ -281,17 +281,17 @@ class PulseHeadMovement:
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, signal, label="S")
         # plt.show()
-        peaks,_ = find_peaks(signal,prominence=(0.5,None))
+        peaks,_ = find_peaks(signal,prominence=(0.3,None))
         measured_time = time_array[-1] - time_array[0]
         pulse = (len(peaks)/measured_time)*60
         pulse = np.int16(pulse)
         rospy.loginfo("Pulse: "+str(pulse))
         return pulse
 
-    def publish_pulse(self, pulse_value):
+    def publish_pulse(self, pulse_value, publish_time):
         msg_to_publish = pulse()
         msg_to_publish.pulse = pulse_value
-        msg_to_publish.time.stamp = self.publish_time
+        msg_to_publish.time.stamp = publish_time
         msg_to_publish.time.seq = self.seq
         self.pub.publish(msg_to_publish)
         self.seq += 1

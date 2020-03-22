@@ -6,6 +6,7 @@ import os
 
 import scipy.fftpack as fftpack
 from scipy.signal import butter, filtfilt
+import matplotlib.pyplot as plt
 
 
 def build_gaussian_pyramid(frame, level=3):
@@ -31,15 +32,8 @@ def temporal_ideal_filter(gau_video, lowcut, highcut, fps, axis=0):
     fft[:bound_low] = 0
     fft[bound_high:-bound_high] = 0
     fft[-bound_low:] = 0
-    iff = fftpack.ifft(fft, axis = axis)
+    iff = fftpack.ifft(fft, axis=axis)
     return np.abs(iff)
-    #nyq = 0.5 * fps
-    #low = lowcut / nyq
-    #high = highcut / nyq
-    #b, a = butter(order, [low, high], btype='band', analog=False)
-    #y = filtfilt(b, a, gau_video, axis=2, padtype=None)
-    #return y
-
 
 
 def amplify_video(filtered_tensor, amplify):
@@ -83,17 +77,18 @@ class PulseMeasurement:
         self.count = 0
         self.levels = 2
         self.low = 0.8
-        self.high = 1.5
-        self.amplification = 50
+        self.high = 1.8
+        self.amplification = 100
 
-        self.fps = 20
+        self.fps = 23
         self.video_array = []
         self.start_time = 0
         self.end_time = 0
-        self.buffer_size = 100
+        self.buffer_size = 50
+        self.time_array = []
 
     def calculate_fps(self):
-        time_difference = self.end_time - self.start_time
+        time_difference = self.time_array[-1] - self.time_array[0]
         samplerate = self.buffer_size / time_difference
         print(samplerate)
         return samplerate
@@ -101,6 +96,7 @@ class PulseMeasurement:
     def run(self, roi):
 
         if self.count < self.buffer_size:
+            self.time_array.append(time.time())
             frame = roi
             normalized = cv2.normalize(frame.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
             cropped = cv2.resize(normalized, (200, 200))
@@ -108,29 +104,15 @@ class PulseMeasurement:
             self.video_array.append(gaussian_frame)
             self.count += 1
             if self.count == self.buffer_size:
-                self.end_time = time.time()
-                if self.start_time != 0:
-                    self.fps = self.calculate_fps()
-                else:
-                    self.fps = 23
-                print('reached 100 frames')
+                self.calculate_fps()
+                print('reached required frames')
                 t = np.asarray(self.video_array, dtype=np.float32)
-                print('converted as np array')
                 filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
-                print('applied filter')
-                print(np.asarray(filtered_tensor, dtype=np.float32).shape)
                 amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
-                print('amplified')
-                print(np.asarray(amplified_video, dtype=np.float32).shape)
                 upsampled_final_t = upsample_final_video(t, self.levels)
-                print('upsampled original')
-                print(np.asarray(upsampled_final_t, dtype=np.float32).shape)
                 upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
-                print('upsampled amplified')
-                print(np.asarray(upsampled_final_amplified, dtype=np.float32).shape)
                 final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)
-                print('reconstruted')
                 show_video(final)
                 self.count = 0
                 self.video_array = []
-                self.start_time = time.time()
+                self.time_array = []

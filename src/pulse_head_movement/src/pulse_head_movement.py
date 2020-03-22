@@ -37,19 +37,11 @@ class PulseHeadMovement:
         # set up ROS publisher and node
         self.pub = rospy.Publisher('head_movement_pulse', pulse, queue_size=10)
         self.seq = 0
-        self.lk_params = dict( winSize  = (35, 35),
-                  maxLevel = 2,
-                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 100, 0.03))
-        self.points_to_track = None
         self.prev_image = None
-        self.track_len = 32
         self.refresh_rate = 100
         self.publish_rate = 25
         self.fps = 0
         self.frame_index = 0
-        self.y_tracking_signal = None
-        self.time_array = np.empty(self.refresh_rate-1)
-        self.publish_time = None
         self.buffer_points = []
         self.buffered_y_tracking_signal = []
         self.buffered_time_arrays = []
@@ -68,27 +60,6 @@ class PulseHeadMovement:
             original_image = self.bridge.imgmsg_to_cv2(mask.image)
             bottom_mask = self.bridge.imgmsg_to_cv2(mask.bottom_face_mask)
             forehead_mask = self.bridge.imgmsg_to_cv2(mask.forehead_mask)
-            # self.show_image_with_mask(original_image,forehead_mask,bottom_mask)
-            # refresh the points to track after a certain frame rate
-            # if self.frame_index % self.refresh_rate == 0 \
-            #         or self.points_to_track is None \
-            #         or len(self.points_to_track) < 5:
-            #     if self.y_tracking_signal is not None:
-            #         # We already stored some y points from which we want to calculate the pulse
-            #         self.process_saved_points()
-            #     if self.points_to_track is not None and len(self.points_to_track) < 5:
-            #         self.frame_index -= 1
-            #     # get initial tracking points
-            #     self.prev_image = original_image
-            #     self.points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
-            #     self.frame_index += 1
-            #     return
-            # if self.frame_index % self.refresh_rate == self.refresh_rate-1:
-            #     self.publish_time = mask.time.stamp
-            # if self.points_to_track is not None:
-            #     self.calculate_optical_flow(original_image, mask.time.stamp)
-            # self.prev_image = original_image
-            # self.frame_index += 1
             if self.frame_index%self.publish_rate == 0:
                 point_index = 0
                 for points in self.buffer_points:
@@ -109,7 +80,6 @@ class PulseHeadMovement:
                 self.frame_index += 1
                 self.prev_image = original_image
                 return
-            # if self.frame_index > 0:
             point_index = 0
             for points in self.buffer_points:
                 new_points = self.calculate_optical_flow(original_image, points)
@@ -169,7 +139,10 @@ class PulseHeadMovement:
         # make a copy for visualization
         vis = image.copy()
         img0, img1 = cv2.equalizeHist(self.prev_image), cv2.equalizeHist(image)
-        new_points, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, previous_points, None, **self.lk_params)
+        lk_params = dict(winSize=(35, 35),
+                  maxLevel=2,
+                  criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 100, 0.03))
+        new_points, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, previous_points, None, **lk_params)
         point_index = 0
         for p in new_points:
             cv2.circle(vis, (p[0][0], p[0][1]), 2, (0, 255, 0), -1)

@@ -24,7 +24,7 @@ def build_gaussian_frame(normalized, level):
     return gaussian_frame
 
 
-def show_a_plot(function):
+def show_a_plot(function, phase):
     plot_array_blue = []
     plot_array_green = []
     plot_array_red = []
@@ -41,19 +41,19 @@ def show_a_plot(function):
     plt.figure()
     plt.subplot(311)
     plt.ylabel('blue intensity')
-    plt.ylim(-1, 1)
+    plt.ylim(0, 1)
     plt.plot(x_axis, plot_array_blue)
 
     plt.subplot(312)
     plt.ylabel('green intensity')
-    plt.ylim(-1, 1)
+    plt.ylim(0, 1)
     plt.plot(x_axis, plot_array_green)
 
     plt.subplot(313)
     plt.ylabel('red intensity')
-    plt.ylim(-1, 1)
+    plt.ylim(0, 1)
     plt.plot(x_axis, plot_array_red)
-    plt.show()
+    plt.savefig('plot_' + str(phase) + '.png')
 
 
 def temporal_ideal_filter(gau_video, lowcut, highcut, fps, axis=0):
@@ -70,7 +70,7 @@ def temporal_ideal_filter(gau_video, lowcut, highcut, fps, axis=0):
 
 def amplify_video(filtered_tensor, amplify):
     npa = np.asarray(filtered_tensor, dtype=np.float32)
-    #npa[:, :, :, 0] = np.multiply(npa[:, :, :, 0], amplify)
+    npa[:, :, :, 0] = np.multiply(npa[:, :, :, 0], amplify)
     npa[:, :, :, 1] = np.multiply(npa[:, :, :, 1], amplify)
     npa[:, :, :, 2] = np.multiply(npa[:, :, :, 2], amplify)
     return npa
@@ -116,8 +116,9 @@ class PulseMeasurement:
         self.video_array = []
         self.start_time = 0
         self.end_time = 0
-        self.buffer_size = 20
+        self.buffer_size = 100
         self.time_array = []
+        self.phase = 0
 
     def calculate_fps(self):
         time_difference = self.time_array[-1] - self.time_array[0]
@@ -136,12 +137,13 @@ class PulseMeasurement:
             self.video_array.append(gaussian_frame)
             self.count += 1
             if self.count == self.buffer_size:
+                self.phase +=1
                 self.calculate_fps()
                 print('reached required frames')
                 t = np.asarray(self.video_array, dtype=np.float32)
                 filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
                 amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
-                show_a_plot(amplified_video)
+                show_a_plot(amplified_video, self.phase)
                 upsampled_final_t = upsample_final_video(t, self.levels)
                 upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
                 final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)

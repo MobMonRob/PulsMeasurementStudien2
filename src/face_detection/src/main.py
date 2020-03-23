@@ -20,6 +20,10 @@ class FaceDetector:
         self.image_sequence = 0
         self.start = 0
         self.frames = 0
+        self.count = 0
+        self.biggest_face = None
+        self.min_size = None
+        self.max_size = None
 
         self.face_publisher = rospy.Publisher("/face_detection/face", Image, queue_size=10)
         self.forehead_publisher = rospy.Publisher("/face_detection/forehead", Image, queue_size=10)
@@ -33,14 +37,16 @@ class FaceDetector:
         rospy.loginfo("Shutting down")
 
     def on_image(self, data, convert=True):
+        recalculate = (self.count % 1) == 0
+        self.count += 1
         self.frames += 1
 
-        if self.frames is 120:
+        if self.frames is 60:
             end = time.time()
             seconds = end - self.start
             rospy.loginfo("Time taken: " + str(seconds) + " seconds")
 
-            fps = 120 / seconds
+            fps = 60 / seconds
             rospy.loginfo("Estimated frames per second: " + str(fps))
 
             self.start = time.time()
@@ -59,38 +65,46 @@ class FaceDetector:
         # Get gray scale image from OpenCV
         gray_scale_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-        # Create the haar cascade
-        face_cascade = cv2.CascadeClassifier(os.path.dirname(os.path.realpath(__file__)) + "/../resources/cascade.xml")
+        if recalculate:
+            # Create the haar cascade
+            face_cascade = cv2.CascadeClassifier(os.path.dirname(os.path.realpath(__file__)) + "/../resources/cascade.xml")
 
-        # Detect faces in the image
-        faces = face_cascade.detectMultiScale(
-            gray_scale_image,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(30, 30)
-        )
+            if not self.min_size or not self.max_size:
+                height = np.size(cv_image, 0)
+                self.min_size = (height / 3, height / 3)
+                self.max_size = (height, height)
 
-        # Show original image, if no faces are detected
-        if len(faces) is 0:
-            rospy.loginfo("No faces detected!")
+            # Detect faces in the image
+            faces = face_cascade.detectMultiScale(
+                gray_scale_image,
+                scaleFactor=1.15,
+                minNeighbors=5,
+                minSize=self.min_size,
+                maxSize=self.max_size
+            )
 
-            if self.show_image_frame is True:
-                cv2.imshow("Image", cv_image)
-                cv2.waitKey(3)
+            # Show original image, if no faces are detected
+            if len(faces) is 0:
+                rospy.loginfo("No faces detected!")
+                self.count = 0
 
-            return
+                if self.show_image_frame is True:
+                    cv2.imshow("Image", cv_image)
+                    cv2.waitKey(3)
+                return
 
-        # Get biggest face
-        biggest_face = self.get_biggest_face(faces)
-        face_x = biggest_face[0]
-        face_y = biggest_face[1]
-        face_w = biggest_face[2]
-        face_h = biggest_face[3]
+            # Get biggest face
+            self.biggest_face = self.get_biggest_face(faces)
+
+        face_x = self.biggest_face[0]
+        face_y = self.biggest_face[1]
+        face_w = self.biggest_face[2]
+        face_h = self.biggest_face[3]
 
         # Crop image to biggest face
-        cropped_face = cv_image[face_y: face_y + face_h, face_x: face_x + face_w]
+        face = cv_image[face_y: face_y + face_h, face_x: face_x + face_w]
         # Publish image to ROS
-        self.publish_image(self.face_publisher, cropped_face)
+        self.publish_image(self.face_publisher, face)
 
         # Define region of forehead
         forehead_x = face_x + face_w / 3
@@ -99,9 +113,9 @@ class FaceDetector:
         forehead_h = int(face_h / 5)
 
         # Crop image to forehead
-        cropped_forehead = cv_image[forehead_y: forehead_y + forehead_h, forehead_x: forehead_x + forehead_w]
+        forehead = cv_image[forehead_y: forehead_y + forehead_h, forehead_x: forehead_x + forehead_w]
         # Publish image to ROS
-        self.publish_image(self.forehead_publisher, cropped_forehead)
+        self.publish_image(self.forehead_publisher, forehead)
 
         # Define bottom region
         bottom_x = face_x + face_w / 4
@@ -110,9 +124,9 @@ class FaceDetector:
         bottom_h = face_h / 2
 
         # Crop image to bottom region
-        cropped_bottom_face = cv_image[bottom_y: bottom_y + bottom_h, bottom_x: bottom_x + bottom_w]
+        bottom_face = cv_image[bottom_y: bottom_y + bottom_h, bottom_x: bottom_x + bottom_w]
         # Publish image to ROS
-        self.publish_image(self.bottom_face_publisher, cropped_bottom_face)
+        self.publish_image(self.bottom_face_publisher, bottom_face)
 
         # Publish image with mask to ROS
         forehead_mask = self.get_mask(
@@ -154,6 +168,9 @@ class FaceDetector:
             cv2.waitKey(3)
 
     def get_biggest_face(self, faces):
+        if len(faces) is 1:
+            return faces[0]
+
         biggest_face = None
 
         for face in faces:

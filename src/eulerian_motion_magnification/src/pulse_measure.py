@@ -31,9 +31,9 @@ def show_a_plot(function, phase):
     x_axis = []
     for i in range(0, function.shape[0]):
         image = function[i, :, :, :]
-        point_of_interest_blue = image[25][25][0]
-        point_of_interest_green = image[25][25][1]
-        point_of_interest_red = image[25][25][2]
+        point_of_interest_blue = image[100][100][0]
+        point_of_interest_green = image[100][100][1]
+        point_of_interest_red = image[100][100][2]
         x_axis.append(i)
         plot_array_blue.append(point_of_interest_blue)
         plot_array_green.append(point_of_interest_green)
@@ -41,17 +41,17 @@ def show_a_plot(function, phase):
     plt.figure()
     plt.subplot(311)
     plt.ylabel('blue intensity')
-    plt.ylim(0, 1)
+    plt.ylim(0, 3)
     plt.plot(x_axis, plot_array_blue)
 
     plt.subplot(312)
     plt.ylabel('green intensity')
-    plt.ylim(0, 1)
+    plt.ylim(0, 3)
     plt.plot(x_axis, plot_array_green)
 
     plt.subplot(313)
     plt.ylabel('red intensity')
-    plt.ylim(0, 1)
+    plt.ylim(0, 3)
     plt.plot(x_axis, plot_array_red)
     plt.savefig('plot_' + str(phase) + '.png')
 
@@ -143,10 +143,10 @@ class PulseMeasurement:
                 t = np.asarray(self.video_array, dtype=np.float32)
                 filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
                 amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
-                show_a_plot(amplified_video, self.phase)
                 upsampled_final_t = upsample_final_video(t, self.levels)
                 upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
                 final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)
+                show_a_plot(final, self.phase)
                 show_video(final)
                 self.count = 0
                 self.video_array = []

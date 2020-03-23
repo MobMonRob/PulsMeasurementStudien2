@@ -3,17 +3,18 @@
     <arg name="topic" default="/webcam/image_raw" />
     <arg name="show_image_frame" default="true" />
     <arg name="fps" default="30" />
+    <arg name="video_file" default="0"/>
     <include file="$(find video_stream_opencv)/launch/camera.launch" >
         <!-- node name and ros graph name -->
         <arg name="camera_name" value="webcam" />
         <!-- means video device 0, /dev/video0 -->
-        <arg name="video_stream_provider" value="0" />
+        <arg name="video_stream_provider" value="$(arg video_file)" />
         <!-- set camera fps to (if the device allows) -->
         <arg name="set_camera_fps" value="$(arg fps)"/>
         <!-- set buffer queue size of frame capturing to (1 means we want the latest frame only) -->
         <arg name="buffer_queue_size" value="1" />
         <!-- throttling the querying of frames to -->
-        <arg name="fps" value="30" />
+        <arg name="fps" value="$(arg fps)" />
         <!-- setting frame_id -->
         <arg name="frame_id" value="webcam_optical_frame" />
         <!-- camera info loading, take care as it needs the "file:///" at the start , e.g.:

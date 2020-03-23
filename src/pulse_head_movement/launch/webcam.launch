@@ -1,7 +1,12 @@
 <?xml version="1.0"?>
 <launch>
+    <arg name="show_image_frame" default="false" />
+    <arg name="fps" default="30" />
+    <arg name="video_file" default="0"/>
     <include file="$(find face_detection)/launch/webcam.launch">
-        <arg name="show_image_frame" value="false" />
+        <arg name="show_image_frame" value="$(arg show_image_frame)" />
+        <arg name="fps" value="$(arg fps)" />
+        <arg name="video_file" value="$(arg video_file)" />
     </include>
     <include file="$(find pulse_head_movement)/launch/pulse_head_movement.launch">
         <arg name="topic" value="/face_detection/mask" />

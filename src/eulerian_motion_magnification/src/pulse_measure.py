@@ -3,7 +3,8 @@ import numpy as np
 import time
 import cv2
 import os
-
+import rospy
+from std_msgs.msg import Float32
 import scipy.fftpack as fftpack
 from scipy.signal import butter, filtfilt
 import matplotlib.pyplot as plt
@@ -24,7 +25,7 @@ def build_gaussian_frame(normalized, level):
     return gaussian_frame
 
 
-def show_a_plot(function, phase):
+def show_a_plot(function):
     plot_array_blue = []
     plot_array_green = []
     plot_array_red = []
@@ -53,7 +54,6 @@ def show_a_plot(function, phase):
     plt.ylabel('red intensity')
     plt.ylim(0, 3)
     plt.plot(x_axis, plot_array_red)
-    plt.savefig('plot_' + str(phase) + '.png')
 
 
 def temporal_ideal_filter(gau_video, lowcut, highcut, fps, axis=0):
@@ -86,7 +86,7 @@ def upsample_final_video(final, levels):
     return np.asarray(final_video, dtype=np.float32)
 
 
-def reconstruct_vido(amplified_video, original_video, levels=3):
+def reconstruct_video(amplified_video, original_video, levels=3):
     final_video = np.zeros(original_video.shape)
     for i in range(0, amplified_video.shape[0]):
         image = amplified_video[i]
@@ -117,14 +117,13 @@ class PulseMeasurement:
         self.low = 0.8
         self.high = 1.8
         self.amplification = 20
-
+        self.pub = rospy.Publisher('eulerian_color_changes', Float32, queue_size=10)
         self.fps = 23
         self.video_array = []
         self.start_time = 0
         self.end_time = 0
         self.buffer_size = 30
         self.time_array = []
-        self.phase = 0
 
     def calculate_fps(self):
         time_difference = self.time_array[-1] - self.time_array[0]
@@ -133,6 +132,13 @@ class PulseMeasurement:
         samplerate = self.buffer_size/ time_difference
         print(samplerate)
         return samplerate
+
+    def publish_color_changes(self, upsampled_final_amplified):
+        image = upsampled_final_amplified[-1, :, :, :]
+        red_intensity = image[100][100][2]
+        msg_to_publish = red_intensity
+        self.pub.publish(msg_to_publish)
+
 
     def run(self, roi):
         self.time_array.append(time.time())
@@ -149,5 +155,6 @@ class PulseMeasurement:
             amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
             upsampled_final_t = upsample_final_video(t, self.levels)
             upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
-            final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)
+            self.publish_color_changes(upsampled_final_amplified)
+            final = reconstruct_video(upsampled_final_amplified, upsampled_final_t, levels=3)
             show_image(final)

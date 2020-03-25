@@ -102,6 +102,12 @@ def show_video(final):
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
+def show_image(final):
+    image = final[-1]
+    cv2.imshow("final", image)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        pass
+
 
 class PulseMeasurement:
 
@@ -116,38 +122,32 @@ class PulseMeasurement:
         self.video_array = []
         self.start_time = 0
         self.end_time = 0
-        self.buffer_size = 100
+        self.buffer_size = 30
         self.time_array = []
         self.phase = 0
 
     def calculate_fps(self):
         time_difference = self.time_array[-1] - self.time_array[0]
-        samplerate = self.buffer_size / time_difference
+        if time_difference == 0:
+            pass
+        samplerate = self.buffer_size/ time_difference
         print(samplerate)
         return samplerate
 
     def run(self, roi):
-
-        if self.count < self.buffer_size:
-            self.time_array.append(time.time())
-            frame = roi
-            normalized = cv2.normalize(frame.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
-            cropped = cv2.resize(normalized, (200, 200))
-            gaussian_frame = build_gaussian_frame(cropped, self.levels)
-            self.video_array.append(gaussian_frame)
-            self.count += 1
-            if self.count == self.buffer_size:
-                self.phase +=1
-                self.calculate_fps()
-                print('reached required frames')
-                t = np.asarray(self.video_array, dtype=np.float32)
-                filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
-                amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
-                upsampled_final_t = upsample_final_video(t, self.levels)
-                upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
-                final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)
-                show_a_plot(final, self.phase)
-                show_video(final)
-                self.count = 0
-                self.video_array = []
-                self.time_array = []
+        self.time_array.append(time.time())
+        normalized = cv2.normalize(roi.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
+        cropped = cv2.resize(normalized, (200, 200))
+        gaussian_frame = build_gaussian_frame(cropped, self.levels)
+        self.video_array.append(gaussian_frame)
+        if len(self.video_array) == self.buffer_size:
+            self.calculate_fps()
+            self.video_array.pop(0)
+            self.time_array.pop(0)
+            t = np.asarray(self.video_array, dtype=np.float32)
+            filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
+            amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
+            upsampled_final_t = upsample_final_video(t, self.levels)
+            upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
+            final = reconstruct_vido(upsampled_final_amplified, upsampled_final_t, levels=3)
+            show_image(final)

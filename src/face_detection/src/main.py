@@ -2,6 +2,7 @@
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 from face_detection.msg import Mask
+from scipy.signal import butter, lfilter, filtfilt, find_peaks
 
 import cv2
 import os
@@ -9,6 +10,8 @@ import rospy
 import sys
 import numpy as np
 import time
+import pyedflib
+import matplotlib.pyplot as plt
 
 
 class FaceDetector:
@@ -31,10 +34,28 @@ class FaceDetector:
         self.mask_publisher = rospy.Publisher("/face_detection/mask", Mask, queue_size=10)
 
     def run(self):
+        self.read_file()
         self.start = time.time()
         rospy.Subscriber(self.topic, Image, self.on_image)
         rospy.spin()
         rospy.loginfo("Shutting down")
+
+    def read_file(self):
+        file_name = '/home/miguel/Downloads/hci-tagging-database_download_2020-03-25_18_28_08/Sessions/781/Part_7_N_Trial1_emotion.bdf'
+        f = pyedflib.EdfReader(file_name)
+        n = f.signals_in_file
+        signal_labels = f.getSignalLabels()
+
+        sigbufs = np.zeros(20480)
+        sigbufs[:] = f.readSignal(signal_labels.index(u'EXG2'))
+        sigbufs = sigbufs[5000:]
+
+        xs = np.arange(20480 - 5000)
+        plt.figure(figsize=(6.5, 4))
+        plt.plot(xs, sigbufs, label="S")
+        plt.show()
+
+        print(sigbufs)
 
     def on_image(self, data, convert=True):
         recalculate = (self.count % 1) == 0

@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="topic" default="/webcam/image_raw" />
+    <arg name="bdf_file" default="None" />
     <arg name="show_image_frame" default="true" />
     <arg name="fps" default="30" />
     <arg name="video_file" default="0"/>
@@ -29,6 +30,7 @@
     </include>
     <include file="$(find face_detection)/launch/face_detection.launch">
         <arg name="topic" value="$(arg topic)" />
+        <arg name="bdf_file" value="$(arg bdf_file)" />
         <arg name="show_image_frame" value="$(arg show_image_frame)" />
     </include>
 </launch>

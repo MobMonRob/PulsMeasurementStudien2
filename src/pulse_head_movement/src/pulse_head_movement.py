@@ -7,7 +7,9 @@ import sys
 import numpy as np
 import cv2
 import rospy
+import peakutils
 from pulse_chest_strap.msg import pulse
+from scipy import stats
 from scipy import interpolate
 from scipy.signal import butter, lfilter, filtfilt, find_peaks
 from cv_bridge import CvBridge, CvBridgeError
@@ -38,8 +40,8 @@ class PulseHeadMovement:
         self.pub = rospy.Publisher('head_movement_pulse', pulse, queue_size=10)
         self.seq = 0
         self.prev_image = None
-        self.refresh_rate = 100
-        self.publish_rate = 25
+        self.refresh_rate = 300
+        self.publish_rate = 50
         self.fps = 0
         self.frame_index = 0
         self.buffer_points = []
@@ -155,7 +157,8 @@ class PulseHeadMovement:
     def process_saved_points(self, y_tracking_signal, time_array, publish_time):
         self.calculate_fps(time_array)
         rospy.loginfo("FPS: " + str(self.fps))
-        interpolated_points = self.interpolate_points(y_tracking_signal, time_array)
+        stable_signal = self.remove_erratic_trajectories(y_tracking_signal)
+        interpolated_points = self.interpolate_points(stable_signal, time_array)
         filtered_signal = self.apply_butterworth_filter(interpolated_points, time_array)
         pca_array = self.process_PCA(filtered_signal, time_array)
         signal = self.find_most_periodic_signal(pca_array)
@@ -167,6 +170,32 @@ class PulseHeadMovement:
         timespan = time_array[-1]-time_array[0]
         rospy.loginfo("Measured timespan: "+str(timespan))
         self.fps = self.refresh_rate/timespan
+
+    def remove_erratic_trajectories(self,y_tracking_signal):
+        stable_signal = []
+        rounded_signal = np.rint(y_tracking_signal)
+        y_point_distance = np.diff(rounded_signal)
+        y_point_distance = np.absolute(y_point_distance)
+        max_distances = []
+        # get the maximum distance for each point
+        for point in y_point_distance:
+            max_distance = np.amax(point)
+            max_distances.append(max_distance)
+        mode,_ = stats.mode(max_distances)
+        mode = mode[0]
+        #only keep the points with max lower than the mode
+        point_index = 0
+        for point in y_tracking_signal:
+            if max_distances[point_index] <= mode:
+                stable_signal.append(point)
+            point_index += 1
+        # xs = np.arange(len(max_distances))
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.seq) + "max_distance"
+        # plt.figure(figsize=(6.5, 4))
+        # plt.plot(xs, max_distances, label="S")
+        # plt.savefig(filename)
+        stable_signal = np.array(stable_signal)
+        return stable_signal
 
     def interpolate_points(self, y_tracking_signal, time_array):
         sample_rate = 250
@@ -184,11 +213,10 @@ class PulseHeadMovement:
             point_index+=1
         #rospy.loginfo(len(interpolated_points[0])/(self.time_array[-1]-self.time_array[0]))
         # np.savetxt("/home/studienarbeit/Dokumente/y_points.csv", interpolated_points, delimiter=";")
-        # plt.figure(figsize=(6.5, 4))
-        # plt.plot(self.time_array, self.y_tracking_signal[8],label="points")
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.seq) + "_move_signal_"
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, interpolated_points[8], label="S")
-        # plt.show()
+        # plt.savefig(filename)
         return interpolated_points
 
     def apply_butterworth_filter(self, input_signal, time_array):
@@ -221,12 +249,13 @@ class PulseHeadMovement:
         pca = PCA(n_components=5)
         pca_array=pca.fit_transform(filtered_signal)
         pca_array = pca_array.transpose()
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.seq) + "_pca_signal_"
         # stepsize = 1. / sample_rate
-        # xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
+        # xs = np.arange(time_array[0], time_array[-1], stepsize)
         # plt.figure(figsize=(6.5, 4))
         # for row in pca_array:
         #     plt.plot(xs, row, label="S")
-        # plt.show()
+        # plt.savefig(filename)
         return pca_array
 
     def find_most_periodic_signal(self, pca_array):
@@ -248,17 +277,19 @@ class PulseHeadMovement:
         return best_signal
 
     def calculate_pulse(self, signal, time_array):
-        # sample_rate = len(signal) / (self.time_array[-1] - self.time_array[0])
-        # stepsize = 1. / sample_rate
-        # xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
+        peaks,_ = find_peaks(signal,prominence=(0.3,None))
+        sample_rate = len(signal) / (time_array[-1] - time_array[0])
+        stepsize = 1. / sample_rate
+        # xs = np.arange(time_array[0], time_array[-1], stepsize)
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.seq) + "_final_signal_"
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, signal, label="S")
-        # plt.show()
-        peaks,_ = find_peaks(signal,prominence=(0.3,None))
+        # plt.plot(xs[peaks], signal[peaks], "x")
+        # plt.savefig(filename)
         measured_time = time_array[-1] - time_array[0]
-        pulse = (len(peaks)/measured_time)*60
+        pulse = (len(peaks) / measured_time) * 60
         pulse = np.int16(pulse)
-        rospy.loginfo("Pulse: "+str(pulse))
+        rospy.loginfo("Pulse: " + str(pulse))
         return pulse
 
     def publish_pulse(self, pulse_value, publish_time):

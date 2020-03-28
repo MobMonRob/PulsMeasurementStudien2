@@ -7,7 +7,6 @@ import sys
 import numpy as np
 import cv2
 import rospy
-import peakutils
 from pulse_chest_strap.msg import pulse
 from scipy import stats
 from scipy import interpolate

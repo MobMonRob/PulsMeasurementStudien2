@@ -117,7 +117,9 @@ class PulseMeasurement:
         self.low = 0.8
         self.high = 1.8
         self.amplification = 20
-        self.pub = rospy.Publisher('eulerian_color_changes', Float32, queue_size=10)
+        self.pub_first = rospy.Publisher('eulerian_color_changes_first', Float32, queue_size=10)
+        self.pub_second = rospy.Publisher('eulerian_color_changes_second', Float32, queue_size=10)
+        self.pub_third = rospy.Publisher('eulerian_color_changes_third', Float32, queue_size=10)
         self.fps = 23
         self.video_array = []
         self.start_time = 0
@@ -135,9 +137,19 @@ class PulseMeasurement:
 
     def publish_color_changes(self, upsampled_final_amplified):
         image = upsampled_final_amplified[-1, :, :, :]
-        red_intensity = image[100][100][2]
-        msg_to_publish = red_intensity
-        self.pub.publish(msg_to_publish)
+
+        first_intensity = image[100][80][1]
+        msg_to_publish_first = first_intensity
+
+        second_intensity = image[100][100][1]
+        msg_to_publish_second = second_intensity
+
+        third_intensity = image[100][120][1]
+        msg_to_publish_third = third_intensity
+
+        self.pub_first.publish(msg_to_publish_first)
+        self.pub_second.publish(msg_to_publish_second)
+        self.pub_third.publish(msg_to_publish_third)
 
 
     def run(self, roi):
@@ -146,7 +158,8 @@ class PulseMeasurement:
         cropped = cv2.resize(normalized, (200, 200))
         gaussian_frame = build_gaussian_frame(cropped, self.levels)
         self.video_array.append(gaussian_frame)
-        if len(self.video_array) == self.buffer_size:
+        if (self.time_array[-1] - self.time_array[0]) >= 5:
+            print(len(self.time_array))
             self.calculate_fps()
             self.video_array.pop(0)
             self.time_array.pop(0)

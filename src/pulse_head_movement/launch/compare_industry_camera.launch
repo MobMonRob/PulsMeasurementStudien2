@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-    <include file="$(find pulse_head_movement)/launch/webcam.launch">
+    <include file="$(find pulse_head_movement)/launch/industry_camera.launch">
         <arg name="show_plot" value="false" />
     </include>
     <node name="pulsgurt_node" pkg="pulse_chest_strap" type="pulse_polarH7.py" args="-m 00:22:D0:84:1E:64" output="screen"/>

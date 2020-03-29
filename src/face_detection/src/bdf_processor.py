@@ -1,91 +1,84 @@
 from mne.preprocessing.ecg import qrs_detector
+from face_detection.msg import ECG
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import pyedflib
+import rospy
 
 
 class BdfProcessor:
 
     def __init__(self, bdf_file):
         self.bdf_file = bdf_file
+        self.pulse_sequence = 0
+        self.ecg_publisher = rospy.Publisher("/face_detection/ecg", ECG, queue_size=10)
 
     def run(self):
-        estimates = []
+        signal, frequency, duration = self.get_signal(name='EXG2')
+        avg_hr, peaks = self.plot_signal(signal, frequency, 'EXG2')
+        rospy.loginfo("Average heart rate: " + str(avg_hr))
 
-        for i, channel in enumerate(('EXG1', 'EXG2', 'EXG3')):
-            plt.subplot(3, 1, i + 1)
-            signal, freq = self.bdf_load_signal(name=channel)
-            avg_hr, peaks = self.plot_signal(signal, freq, channel)
-            estimates.append(avg_hr)
+        # plt.tight_layout()
+        # plt.show()
 
-        plt.tight_layout()
-        plt.show()
+        peaks = qrs_detector(frequency, signal)
+        rates = self.get_instantaneous_rates(peaks, frequency)
+        self.calculate_heart_rates(rates, peaks, len(signal), duration)
 
-    def bdf_load_signal(self, name='EXG2', start=None, end=None):
-        if not os.path.exists(self.bdf_file):  # or the EdfReader will crash the interpreter
-            raise IOError("file `%s' does not exist" % self.bdf_file)
+    def calculate_heart_rates(self, rates, peaks, length, duration):
+        hr = rates[:20]
 
-        with pyedflib.EdfReader(self.bdf_file) as e:
-            # get the status information, so we how the video is synchronized
-            status_index = e.getSignalLabels().index('Status')
-            sample_frequency = e.samplefrequency(status_index)
-            status_size = e.samples_in_file(status_index)
-            status = np.zeros((status_size,), dtype='float64')
-            e.readsignal(status_index, 0, status_size, status)
-            status = status.round().astype('int')
-            nz_status = status.nonzero()[0]
+        for index, rate in enumerate(rates[20:]):
+            hr = np.roll(hr, -1)
+            hr[-1] = rate
 
-            # because we're interested in the video bits, make sure to get data
-            # from that period only
-            video_start = nz_status[0]
-            video_end = nz_status[-1]
+            percentage = peaks[index + 21] / float(length)
+            offset = (percentage * duration)
+            time = rospy.Time.now() + rospy.Duration.from_sec(offset)
+            self.publish_pulse(hr.mean(), time)
 
-            # retrieve information from this rather chaotic API
-            index = e.getSignalLabels().index(name)
-            sample_frequency = e.samplefrequency(index)
+    def get_instantaneous_rates(self, peaks, frequency):
+        rates = (frequency * 60) / np.diff(peaks)
 
-            video_start_seconds = video_start / sample_frequency
+        # Remove instantaneous rates which are lower than 30, higher than 240
+        selector = (rates > 30) & (rates < 240)
+        return rates[selector]
 
-            if start is not None:
-                start += video_start_seconds
-                start *= sample_frequency
-                if start < video_start: start = video_start
-                start = int(start)
-            else:
-                start = video_start
+    def publish_pulse(self, pulse, time):
+        ros_msg = ECG()
+        ros_msg.pulse = pulse
+        ros_msg.time.stamp = time
+        ros_msg.time.seq = self.pulse_sequence
 
-            if end is not None:
-                end += video_start_seconds
-                end *= sample_frequency
-                if end > video_end: end = video_end
-                end = int(end)
-            else:
-                end = video_end
+        self.ecg_publisher.publish(ros_msg)
+        self.pulse_sequence += 1
 
-            # now read the data into a numpy array (read everything)
-            container = np.zeros((end - start,), dtype='float64')
-            e.readsignal(index, start, end - start, container)
+    def get_signal(self, name='EXG2'):
+        # Read signal
+        reader = pyedflib.EdfReader(self.bdf_file)
+        index = reader.getSignalLabels().index(name)
+        frequency = reader.samplefrequency(index)
+        signal = reader.readSignal(index, digital=False)
 
-            return container, sample_frequency
+        # Filter end of signal
+        length = len(signal)
+        selector = signal < -100
+        signal = signal[selector]
 
-    def estimate_average_heartrate(self, s, sampling_frequency):
-        peaks = qrs_detector(sampling_frequency, s)
-        instantaneous_rates = (sampling_frequency * 60) / np.diff(peaks)
+        # Calculate new duration with filtered signal
+        percentage = len(signal) / float(length)
+        duration = reader.getFileDuration() * percentage
+        return signal, frequency, duration
 
-        # remove instantaneous rates which are lower than 30, higher than 240
-        selector = (instantaneous_rates > 30) & (instantaneous_rates < 240)
-        return float(np.nan_to_num(instantaneous_rates[selector].mean())), peaks
-
-    def plot_signal(self, s, sampling_frequency, channel_name):
-        avg, peaks = self.estimate_average_heartrate(s, sampling_frequency)
+    def plot_signal(self, signal, sampling_frequency, channel_name):
+        avg, peaks = self.estimate_average_heartrate(signal, sampling_frequency)
 
         ax = plt.gca()
-        ax.plot(np.arange(0, len(s) / sampling_frequency, 1 / sampling_frequency), s, label='Raw signal')
+        ax.plot(np.arange(0, len(signal) / sampling_frequency, 1 / sampling_frequency), signal, label='Raw signal')
         xmin, xmax, ymin, ymax = plt.axis()
         ax.vlines(peaks / sampling_frequency, ymin, ymax, colors='r', label='P-T QRS detector')
-        plt.xlim(0, len(s) / sampling_frequency)
+        plt.xlim(0, len(signal) / sampling_frequency)
         plt.ylabel('uV')
         plt.xlabel('time (s)')
         plt.title('Channel %s - Average heart-rate = %d bpm' % (channel_name, avg))
@@ -93,3 +86,12 @@ class BdfProcessor:
         ax.legend(loc='best', fancybox=True, framealpha=0.5)
 
         return avg, peaks
+
+    def estimate_average_heartrate(self, signal, sampling_frequency):
+        peaks = qrs_detector(sampling_frequency, signal)
+        instantaneous_rates = (sampling_frequency * 60) / np.diff(peaks)
+
+        # remove instantaneous rates which are lower than 30, higher than 240
+        selector = (instantaneous_rates > 30) & (instantaneous_rates < 240)
+        return float(np.nan_to_num(instantaneous_rates[selector].mean())), peaks
+

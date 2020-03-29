@@ -3,7 +3,7 @@
     <arg name="topic" default="/webcam/image_raw" />
     <arg name="bdf_file" default="None" />
     <arg name="show_image_frame" default="true" />
-    <arg name="fps" default="61" />
+    <arg name="fps" default="30" />
     <arg name="video_file" default="0"/>
     <include file="$(find video_stream_opencv)/launch/camera.launch" >
         <!-- node name and ros graph name -->
@@ -33,4 +33,5 @@
         <arg name="bdf_file" value="$(arg bdf_file)" />
         <arg name="show_image_frame" value="$(arg show_image_frame)" />
     </include>
+    <node name="ecg_plot" pkg="plotjuggler" type="PlotJuggler" args="--layout $(find face_detection)/config/ecg_plot_config.xml"/>
 </launch>

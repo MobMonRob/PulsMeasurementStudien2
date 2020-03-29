@@ -241,7 +241,7 @@ def main(args):
     rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
 
     # Start bdf processor
-    if bdf_file and bdf_file is not "None":
+    if bdf_file and bdf_file != "None":
         bdf_processor = BdfProcessor(bdf_file)
         bdf_processor.run()
 

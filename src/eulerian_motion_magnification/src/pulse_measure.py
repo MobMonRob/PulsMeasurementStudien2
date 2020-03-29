@@ -6,7 +6,7 @@ import os
 import rospy
 from std_msgs.msg import Float32
 import scipy.fftpack as fftpack
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt, find_peaks
 import matplotlib.pyplot as plt
 
 
@@ -25,40 +25,9 @@ def build_gaussian_frame(normalized, level):
     return gaussian_frame
 
 
-def show_a_plot(function):
-    plot_array_blue = []
-    plot_array_green = []
-    plot_array_red = []
-    x_axis = []
-    for i in range(0, function.shape[0]):
-        image = function[i, :, :, :]
-        point_of_interest_blue = image[100][100][0]
-        point_of_interest_green = image[100][100][1]
-        point_of_interest_red = image[100][100][2]
-        x_axis.append(i)
-        plot_array_blue.append(point_of_interest_blue)
-        plot_array_green.append(point_of_interest_green)
-        plot_array_red.append(point_of_interest_red)
-    plt.figure()
-    plt.subplot(311)
-    plt.ylabel('blue intensity')
-    plt.ylim(0, 3)
-    plt.plot(x_axis, plot_array_blue)
-
-    plt.subplot(312)
-    plt.ylabel('green intensity')
-    plt.ylim(0, 3)
-    plt.plot(x_axis, plot_array_green)
-
-    plt.subplot(313)
-    plt.ylabel('red intensity')
-    plt.ylim(0, 3)
-    plt.plot(x_axis, plot_array_red)
-
-
 def temporal_ideal_filter(gau_video, lowcut, highcut, fps, axis=0):
     fft = fftpack.fft(gau_video, axis=axis)
-    frequencies = fftpack.fftfreq(gau_video.shape[0], d=1.0 /fps)
+    frequencies = fftpack.fftfreq(gau_video.shape[0], d=1.0 / fps)
     bound_low = (np.abs(frequencies - lowcut)).argmin()
     bound_high = (np.abs(frequencies - highcut)).argmin()
     fft[:bound_low] = 0
@@ -102,11 +71,24 @@ def show_video(final):
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
+
 def show_image(final):
     image = final[-1]
     cv2.imshow("final", image)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         pass
+
+
+def calculate_pulse(upsampled_final_amplified):
+    green_values = []
+    for i in range(0, upsampled_final_amplified.shape[0]):
+        img = upsampled_final_amplified[i]
+        green_intensity = img[100][100][1]
+        green_values.append(green_intensity)
+    peaks, _ = find_peaks(green_values)
+    pulse = len(peaks) * 12
+    pulse = np.int16(pulse)
+    print("pulse :" + str(pulse))
 
 
 class PulseMeasurement:
@@ -131,7 +113,7 @@ class PulseMeasurement:
         time_difference = self.time_array[-1] - self.time_array[0]
         if time_difference == 0:
             pass
-        samplerate = self.buffer_size/ time_difference
+        samplerate = self.buffer_size / time_difference
         print(samplerate)
         return samplerate
 
@@ -151,7 +133,6 @@ class PulseMeasurement:
         self.pub_second.publish(msg_to_publish_second)
         self.pub_third.publish(msg_to_publish_third)
 
-
     def run(self, roi):
         self.time_array.append(time.time())
         normalized = cv2.normalize(roi.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
@@ -168,6 +149,7 @@ class PulseMeasurement:
             amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
             upsampled_final_t = upsample_final_video(t, self.levels)
             upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
+            calculate_pulse(upsampled_final_amplified)
             self.publish_color_changes(upsampled_final_amplified)
             final = reconstruct_video(upsampled_final_amplified, upsampled_final_t, levels=3)
             show_image(final)

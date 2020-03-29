@@ -141,6 +141,7 @@ class PulseMeasurement:
         self.video_array.append(gaussian_frame)
         if (self.time_array[-1] - self.time_array[0]) >= 5:
             print(len(self.time_array))
+            self.buffer_size = (len(self.time_array))
             self.calculate_fps()
             self.video_array.pop(0)
             self.time_array.pop(0)

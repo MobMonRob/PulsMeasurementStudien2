@@ -86,7 +86,7 @@ def calculate_pulse(upsampled_final_amplified):
         green_intensity = img[100][100][1]
         green_values.append(green_intensity)
     peaks, _ = find_peaks(green_values)
-    pulse = len(peaks) * 12
+    pulse = len(peaks) * 2
     pulse = np.int16(pulse)
     print("pulse :" + str(pulse))
 
@@ -97,7 +97,7 @@ class PulseMeasurement:
         self.count = 0
         self.levels = 2
         self.low = 0.8
-        self.high = 1.8
+        self.high = 2
         self.amplification = 20
         self.pub_first = rospy.Publisher('eulerian_color_changes_first', Float32, queue_size=10)
         self.pub_second = rospy.Publisher('eulerian_color_changes_second', Float32, queue_size=10)
@@ -106,8 +106,9 @@ class PulseMeasurement:
         self.video_array = []
         self.start_time = 0
         self.end_time = 0
-        self.buffer_size = 30
+        self.buffer_size = 0
         self.time_array = []
+        self.calculating_at = 50
 
     def calculate_fps(self):
         time_difference = self.time_array[-1] - self.time_array[0]
@@ -139,18 +140,20 @@ class PulseMeasurement:
         cropped = cv2.resize(normalized, (200, 200))
         gaussian_frame = build_gaussian_frame(cropped, self.levels)
         self.video_array.append(gaussian_frame)
-        if (self.time_array[-1] - self.time_array[0]) >= 5:
-            print(len(self.time_array))
+        if (self.time_array[-1] - self.time_array[0]) >= 30:
             self.buffer_size = (len(self.time_array))
-            self.calculate_fps()
             self.video_array.pop(0)
             self.time_array.pop(0)
-            t = np.asarray(self.video_array, dtype=np.float32)
-            filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
-            amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
-            upsampled_final_t = upsample_final_video(t, self.levels)
-            upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
-            calculate_pulse(upsampled_final_amplified)
-            self.publish_color_changes(upsampled_final_amplified)
-            final = reconstruct_video(upsampled_final_amplified, upsampled_final_t, levels=3)
-            show_image(final)
+            self.calculating_at = self.calculating_at + 1
+            if self.calculating_at >= 50:
+                self.calculate_fps()
+                t = np.asarray(self.video_array, dtype=np.float32)
+                filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)
+                amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
+                # upsampled_final_t = upsample_final_video(t, self.levels)
+                upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
+                calculate_pulse(upsampled_final_amplified)
+                # self.publish_color_changes(upsampled_final_amplified)
+                # final = reconstruct_video(upsampled_final_amplified, upsampled_final_t, levels=3)
+                # show_video(final)
+                self.calculating_at = 0

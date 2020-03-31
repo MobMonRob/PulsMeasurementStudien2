@@ -9,12 +9,13 @@ import cv2
 import rospy
 from pulse_chest_strap.msg import pulse
 from scipy import interpolate
-from scipy.signal import butter, lfilter, filtfilt, find_peaks
-from cv_bridge import CvBridge, CvBridgeError
-from face_detection.msg import Mask
+from scipy.signal import butter, filtfilt, find_peaks
+from cv_bridge import CvBridge
 from sklearn.decomposition import PCA
 import pandas as pd
-import matplotlib.pyplot as plt
+
+from face_detection import FaceDetector
+
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
@@ -29,10 +30,10 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     y = filtfilt(b, a, data)
     return y
 
+
 class PulseHeadMovement:
 
-    def __init__(self, topic):
-        self.topic = topic
+    def __init__(self):
         self.bridge = CvBridge()
         # set up ROS publisher and node
         self.pub = rospy.Publisher('head_movement_pulse', pulse, queue_size=10)
@@ -46,56 +47,52 @@ class PulseHeadMovement:
         self.buffered_y_tracking_signal = []
         self.buffered_time_arrays = []
 
-    def run(self):
-        rospy.Subscriber(self.topic, Mask, self.pulse_callback)
+    def run(self, topic, cascade_file, show_image_frame):
+        # Start face detection
+        face_detector = FaceDetector(topic, cascade_file, show_image_frame)
+        face_detector.mask_callback = self.pulse_callback
+        face_detector.run()
+
         try:
             rospy.spin()
         except KeyboardInterrupt:
             rospy.loginfo("Shutting down")
 
-    def pulse_callback(self, mask):
+    def pulse_callback(self, original_image, forehead_mask, bottom_mask, time):
         rospy.loginfo("Capture frame: " + str(self.frame_index))
-        try:
-            # Convert ROS image to OpenCV image
-            original_image = self.bridge.imgmsg_to_cv2(mask.image)
-            bottom_mask = self.bridge.imgmsg_to_cv2(mask.bottom_face_mask)
-            forehead_mask = self.bridge.imgmsg_to_cv2(mask.forehead_mask)
-            if self.frame_index%self.publish_rate == 0:
-                point_index = 0
-                for points in self.buffer_points:
-                    new_points = self.calculate_optical_flow(original_image, points)
-                    self.buffer_points[point_index] = new_points
-                    new_point_index = 0
-                    for point in new_points:
-                        self.buffered_y_tracking_signal[point_index][new_point_index][
-                            ((self.frame_index % self.publish_rate) - 1) + point_index * self.publish_rate] = point[0][
-                            1]
-                        new_point_index += 1
-                    self.buffered_time_arrays[point_index][((
-                                                                        self.frame_index % self.publish_rate) - 1) + point_index * self.publish_rate] = mask.time.stamp.to_sec()
-                    # rospy.loginfo("point: "+ str(point_index) + "position: "+str(((self.frame_index%self.publish_rate)-1)+point_index*self.publish_rate))
-                    point_index += 1
-                current_points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
-                self.edit_buffer(current_points_to_track, mask.time.stamp)
-                self.frame_index += 1
-                self.prev_image = original_image
-                return
+        if self.frame_index%self.publish_rate == 0:
             point_index = 0
             for points in self.buffer_points:
                 new_points = self.calculate_optical_flow(original_image, points)
                 self.buffer_points[point_index] = new_points
                 new_point_index = 0
                 for point in new_points:
-                    self.buffered_y_tracking_signal[point_index][new_point_index][((self.frame_index%self.publish_rate)-1)+point_index*self.publish_rate] = point[0][1]
-                    new_point_index+=1
-                self.buffered_time_arrays[point_index][((self.frame_index%self.publish_rate)-1)+point_index*self.publish_rate] = mask.time.stamp.to_sec()
+                    self.buffered_y_tracking_signal[point_index][new_point_index][
+                        ((self.frame_index % self.publish_rate) - 1) + point_index * self.publish_rate] = point[0][
+                        1]
+                    new_point_index += 1
+                self.buffered_time_arrays[point_index][((
+                                                                    self.frame_index % self.publish_rate) - 1) + point_index * self.publish_rate] = time.to_sec()
                 # rospy.loginfo("point: "+ str(point_index) + "position: "+str(((self.frame_index%self.publish_rate)-1)+point_index*self.publish_rate))
-                point_index+=1
+                point_index += 1
+            current_points_to_track = self.get_points_to_track(original_image, forehead_mask, bottom_mask)
+            self.edit_buffer(current_points_to_track, time)
             self.frame_index += 1
             self.prev_image = original_image
-        except CvBridgeError as e:
-            rospy.logerr(e)
             return
+        point_index = 0
+        for points in self.buffer_points:
+            new_points = self.calculate_optical_flow(original_image, points)
+            self.buffer_points[point_index] = new_points
+            new_point_index = 0
+            for point in new_points:
+                self.buffered_y_tracking_signal[point_index][new_point_index][((self.frame_index%self.publish_rate)-1)+point_index*self.publish_rate] = point[0][1]
+                new_point_index+=1
+            self.buffered_time_arrays[point_index][((self.frame_index%self.publish_rate)-1)+point_index*self.publish_rate] = time.to_sec()
+            # rospy.loginfo("point: "+ str(point_index) + "position: "+str(((self.frame_index%self.publish_rate)-1)+point_index*self.publish_rate))
+            point_index+=1
+        self.frame_index += 1
+        self.prev_image = original_image
 
     def edit_buffer(self, current_points_to_track, publish_time):
         if len(self.buffer_points) < self.refresh_rate/self.publish_rate:
@@ -280,11 +277,22 @@ class PulseHeadMovement:
 
 def main():
     rospy.init_node('head_movement_listener', anonymous=False, log_level=rospy.DEBUG)
-    topic = rospy.get_param("~topic", "/face_detection/mask")
-    rospy.loginfo("Listening on topic '" + topic + "'")
-    pulse = PulseHeadMovement(topic)
-    pulse.run()
 
+    # Get ROS topic from launch parameter
+    topic = rospy.get_param("~topic", "/webcam/image_raw")
+    rospy.loginfo("Listening on topic '" + topic + "'")
+
+    show_image_frame = rospy.get_param("~show_image_frame", False)
+    rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
+
+    cascade_file = rospy.get_param("~cascade_file", "")
+    rospy.loginfo("Show cascade_file frame: '" + str(cascade_file) + "'")
+
+    # Start heart rate measurement
+    pulse = PulseHeadMovement()
+    pulse.run(topic, cascade_file, show_image_frame)
+
+    # Destroy windows on close
     cv2.destroyAllWindows()
 
 

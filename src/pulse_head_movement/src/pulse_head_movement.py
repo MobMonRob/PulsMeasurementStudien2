@@ -47,17 +47,6 @@ class PulseHeadMovement:
         self.buffered_y_tracking_signal = []
         self.buffered_time_arrays = []
 
-    def run(self, topic, cascade_file, show_image_frame):
-        # Start face detection
-        face_detector = FaceDetector(topic, cascade_file, show_image_frame)
-        face_detector.mask_callback = self.pulse_callback
-        face_detector.run()
-
-        try:
-            rospy.spin()
-        except KeyboardInterrupt:
-            rospy.loginfo("Shutting down")
-
     def pulse_callback(self, original_image, forehead_mask, bottom_mask, time):
         rospy.loginfo("Capture frame: " + str(self.frame_index))
         if self.frame_index%self.publish_rate == 0:
@@ -282,15 +271,24 @@ def main():
     topic = rospy.get_param("~topic", "/webcam/image_raw")
     rospy.loginfo("Listening on topic '" + topic + "'")
 
+    bdf_file = rospy.get_param("~bdf_file", "")
+    rospy.loginfo("Bdf file: '" + str(bdf_file) + "'")
+
+    cascade_file = rospy.get_param("~cascade_file", "")
+    rospy.loginfo("Cascade file: '" + str(cascade_file) + "'")
+
     show_image_frame = rospy.get_param("~show_image_frame", False)
     rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
 
-    cascade_file = rospy.get_param("~cascade_file", "")
-    rospy.loginfo("Show cascade_file frame: '" + str(cascade_file) + "'")
-
     # Start heart rate measurement
     pulse = PulseHeadMovement()
-    pulse.run(topic, cascade_file, show_image_frame)
+
+    face_detector = FaceDetector(topic, cascade_file, show_image_frame)
+    face_detector.mask_callback = pulse.pulse_callback
+    face_detector.run(bdf_file)
+
+    rospy.spin()
+    rospy.loginfo("Shutting down")
 
     # Destroy windows on close
     cv2.destroyAllWindows()

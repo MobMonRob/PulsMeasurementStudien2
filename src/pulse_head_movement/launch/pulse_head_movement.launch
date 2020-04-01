@@ -3,11 +3,9 @@
     <arg name="topic" default="/webcam/image_raw" />
     <arg name="show_image_frame" default="false" />
     <arg name="cascade_file" default="$(find face_detection)/include/cascade.xml" />
-    <node pkg="eulerian_motion_magnification" type="main.py" name="eulerian_motion_magnification" output="screen">
+    <node pkg="pulse_head_movement" type="pulse_head_movement.py" name="pulse_head_movement" output="screen">
         <param name="topic" type="string" value="$(arg topic)" />
         <param name="show_image_frame" type="string" value="$(arg show_image_frame)" />
         <param name="cascade_file" type="string" value="$(arg cascade_file)" />
     </node>
 </launch>
-
-

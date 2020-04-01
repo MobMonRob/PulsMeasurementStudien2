@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
-from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import Image
 from pulse_measure import PulseMeasurement
+from face_detection import FaceDetector
 
 import cv2
 import rospy
@@ -11,27 +10,36 @@ import sys
 
 class ImageConverter:
 
-    def __init__(self, topic):
-        self.image_sub = rospy.Subscriber(topic, Image, self.callback)
-        self.bridge = CvBridge()
+    def __init__(self):
         self.pulse_processor = PulseMeasurement()
 
-    def callback(self, data):
-        try:
-            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError as e:
-            print(e)
-            return
+    def run(self, topic, cascade_file, show_image_frame):
+        # Start face detection
+        face_detector = FaceDetector(topic, cascade_file, show_image_frame)
+        face_detector.face_callback = self.pulse_processor.run
+        face_detector.run()
 
-        self.pulse_processor.run(cv_image)
+        try:
+            rospy.spin()
+        except KeyboardInterrupt:
+            rospy.loginfo("Shutting down")
+
 
 def main(args):
     rospy.init_node('face_detection', anonymous=True, log_level=rospy.DEBUG)
 
-    topic = rospy.get_param("~topic", "/face_detection/forehead")
+    # Get ROS topic from launch parameter
+    topic = rospy.get_param("~topic", "/webcam/image_raw")
     rospy.loginfo("Listening on topic '" + topic + "'")
 
-    image_converter = ImageConverter(topic)
+    cascade_file = rospy.get_param("~cascade_file", "")
+    rospy.loginfo("Show cascade_file frame: '" + str(cascade_file) + "'")
+
+    show_image_frame = rospy.get_param("~show_image_frame", False)
+    rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
+
+    image_converter = ImageConverter()
+    image_converter.run(topic, cascade_file, show_image_frame)
 
     try:
         rospy.spin()

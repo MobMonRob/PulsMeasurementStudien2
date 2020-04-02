@@ -8,14 +8,16 @@ import numpy as np
 import cv2
 import rospy
 from pulse_chest_strap.msg import pulse
+from scipy import interpolate
 from scipy import stats
 from scipy.interpolate import CubicSpline
 from scipy.signal import butter, lfilter, filtfilt, find_peaks
 from cv_bridge import CvBridge, CvBridgeError
-from face_detection.msg import Mask
 from sklearn.decomposition import PCA
 import pandas as pd
 import matplotlib.pyplot as plt
+from face_detection import FaceDetector
+
 
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
@@ -30,6 +32,8 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     """
     Butter bandpass filter.
     Inspired from https://scipy-cookbook.readthedocs.io/items/ButterworthBandpass.html
+    replaced filtfilt with lfilter because of delay of lfilter. For example comparison, see:
+    https://dsp.stackexchange.com/questions/19084/applying-filter-in-scipy-signal-use-lfilter-or-filtfilt
     """
     b, a = butter_bandpass(lowcut, highcut, fs, order=order)
     y = filtfilt(b, a, data)
@@ -38,12 +42,10 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 
 class PulseHeadMovement:
 
-    def __init__(self, topic):
+    def __init__(self):
         """
         Constructor.
-        :param topic: the topic to listen to (video input stream)
         """
-        self.topic = topic
         # bridge to convert ROS image to OpenCV image
         self.bridge = CvBridge()
         # set up ROS publisher
@@ -82,32 +84,16 @@ class PulseHeadMovement:
         self.buffered_y_tracking_signal = []
         self.fps = 0
 
-    def run(self):
-        """
-        Method to subscribe to imaging topic.
-        Whenever a image is published to the topic, the pulse_callback method is published.
-        """
-        rospy.Subscriber(self.topic, Mask, self.pulse_callback)
-        try:
-            rospy.spin()
-        except KeyboardInterrupt:
-            rospy.loginfo("Shutting down")
-
-    def pulse_callback(self, mask):
+    def pulse_callback(self, original_image, forehead_mask, bottom_mask, time):
         """
         Callback method for incoming video frames
         :param mask: the message published to the topic (contains gray-image, mask from bottom part of the face
                                                          and mask for forehead)
         """
         # rospy.loginfo("Capture frame: " + str(self.frame_index))
-        try:
-            original_image, bottom_mask, forehead_mask = self.convert_ros_images_to_opencv(mask)
-        except CvBridgeError as e:
-            rospy.logerr(e)
-            return
-        self.get_current_tracking_points_position(original_image, mask.time.stamp.to_sec())
+        self.get_current_tracking_points_position(original_image, time.to_sec())
         if self.frame_index % self.publish_rate == 0:
-            self.add_new_points_to_buffer(original_image, forehead_mask, bottom_mask, mask.time.stamp)
+            self.add_new_points_to_buffer(original_image, forehead_mask, bottom_mask, time)
         self.frame_index += 1
         self.previous_image = original_image
 
@@ -232,9 +218,9 @@ class PulseHeadMovement:
         """
         self.calculate_fps(time_array)
         stable_signal = self.remove_erratic_trajectories(y_tracking_signal)
-        interpolated_points = self.interpolate_points(stable_signal, time_array)
         filtered_signal = self.apply_butterworth_filter(stable_signal, time_array)
-        pca_array = self.process_PCA(filtered_signal, time_array)
+        less_movement = self.discard_much_movement(filtered_signal)
+        pca_array = self.process_PCA(less_movement, time_array)
         signal = self.find_most_periodic_signal(pca_array, time_array)
         pulse = self.calculate_pulse(signal, time_array)
         self.publish_pulse(pulse, publish_time)
@@ -315,29 +301,56 @@ class PulseHeadMovement:
         lowcut = 0.75
         highcut = 5
         filtered_signal = np.empty([np.size(input_signal, 0), np.size(input_signal, 1)])
-        rospy.loginfo("rows:"+str(np.size(input_signal, 0)))
-        point_index = 0
-        for point in input_signal:
+        for point_index, point in enumerate(input_signal):
             filtered_points = butter_bandpass_filter(point, lowcut, highcut, sample_rate, order=5)
-            filtered_point_index = 0
-            for filtered_point in filtered_points:
+            for filtered_point_index, filtered_point in enumerate(filtered_points):
                 filtered_signal[point_index][filtered_point_index] = filtered_point
-                filtered_point_index += 1
-            point_index += 1
         # uncomment the following lines to see the interpolated signal
         # for a random point (i.e. at position 6). For debugging.
-        # np.savetxt("/home/studienarbeit/Dokumente/y_points_filtered.csv", filtered_signal, delimiter=";")
-        # stepsize = 1. / sample_rate
-        # xs = np.arange(self.time_array[0], self.time_array[-1], stepsize)
-        # plt.figure(figsize=(6.5, 4))
-        # plt.plot(xs, filtered_signal[6], label="S")
-        # plt.show()
+        filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_before_filter"
+        stepsize = 1. / sample_rate
+        xs = np.arange(time_array[0], time_array[-1], stepsize)
+        plt.figure(figsize=(6.5, 4))
+        plt.plot(time_array, input_signal[6], label="S")
+        plt.savefig(filename)
+        plt.close()
+        filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "filter"
+        stepsize = 1. / sample_rate
+        xs = np.arange(time_array[0], time_array[-1], stepsize)
+        plt.figure(figsize=(6.5, 4))
+        plt.plot(time_array, filtered_signal[6], label="S")
+        plt.savefig(filename)
         return filtered_signal
+
+    def discard_much_movement(self, signal):
+        """
+        Discard the tracking point with the highest movements.
+        The parameter alpha determines, how much percent of the points should be removed.
+        :param signal: the signal to filter resulting from apply_butterwort_filter
+        """
+        alpha = 0.25
+        number_of_rows_to_discard = int(alpha*np.size(signal, 0))
+        number_of_rows_to_keep = np.size(signal, 0) - number_of_rows_to_discard
+        filtered_signal = np.empty([number_of_rows_to_keep, self.refresh_rate])
+        square_signal = np.square(signal)
+        square_sum = np.sum(square_signal, axis=1)
+        square_sum = np.squeeze(square_sum)
+        square_root = np.sqrt(square_sum)
+        indices_to_discard = square_root.argsort()[-number_of_rows_to_discard:][::-1]
+        print(square_root)
+        print(indices_to_discard)
+        filtered_signal_index = 0
+        for row_index, row in enumerate(signal):
+            if row_index not in indices_to_discard:
+                filtered_signal[filtered_signal_index] = row
+                filtered_signal_index += 1
+        return filtered_signal
+
 
     def process_PCA(self, filtered_signal, time_array):
         """
         process PCA to get the 5 main movement directions of the signal.
-        :param filtered_signal: the signal resulting from apply_butterwort_filter
+        :param filtered_signal: the signal resulting from discard_much_movement
         :param time_array:
         """
         filtered_signal = filtered_signal.transpose()
@@ -393,14 +406,14 @@ class PulseHeadMovement:
         pulse = np.int16(pulse)
         rospy.loginfo("Pulse: " + str(pulse))
         # uncomment the following lines to see the final signal with the detected peaks. For debugging.
-        sample_rate = len(signal) / (time_array[-1] - time_array[0])
-        stepsize = 1. / sample_rate
-        xs = np.arange(time_array[0], time_array[-1], stepsize)
-        filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_final_signal_"
-        plt.figure(figsize=(6.5, 4))
-        plt.plot(xs, signal, label="S")
-        plt.plot(xs[peaks], signal[peaks], "x")
-        plt.savefig(filename)
+        # sample_rate = len(signal) / (time_array[-1] - time_array[0])
+        # stepsize = 1. / sample_rate
+        # xs = np.arange(time_array[0], time_array[-1], stepsize)
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_final_signal_"
+        # plt.figure(figsize=(6.5, 4))
+        # plt.plot(xs, signal, label="S")
+        # plt.plot(xs[peaks], signal[peaks], "x")
+        # plt.savefig(filename)
         return pulse
 
     def publish_pulse(self, pulse_value, publish_time):
@@ -433,10 +446,31 @@ def main():
     Get topic to listen to from launch file and starts main loop in with pulse.run().
     """
     rospy.init_node('head_movement_listener', anonymous=False, log_level=rospy.DEBUG)
-    topic = rospy.get_param("~topic", "/face_detection/mask")
+
+    # Get ROS topic from launch parameter
+    topic = rospy.get_param("~topic", "/webcam/image_raw")
     rospy.loginfo("Listening on topic '" + topic + "'")
-    pulse = PulseHeadMovement(topic)
-    pulse.run()
+
+    bdf_file = rospy.get_param("~bdf_file", "")
+    rospy.loginfo("Bdf file: '" + str(bdf_file) + "'")
+
+    cascade_file = rospy.get_param("~cascade_file", "")
+    rospy.loginfo("Cascade file: '" + str(cascade_file) + "'")
+
+    show_image_frame = rospy.get_param("~show_image_frame", False)
+    rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
+
+    # Start heart rate measurement
+    pulse = PulseHeadMovement()
+
+    face_detector = FaceDetector(topic, cascade_file, show_image_frame)
+    face_detector.mask_callback = pulse.pulse_callback
+    face_detector.run(bdf_file)
+
+    rospy.spin()
+    rospy.loginfo("Shutting down")
+
+    # Destroy windows on close
     cv2.destroyAllWindows()
 
 

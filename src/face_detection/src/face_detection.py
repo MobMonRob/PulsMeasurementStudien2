@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+<<<<<<< HEAD
+=======
+from bdf_processor import BdfProcessor
+>>>>>>> master
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 
@@ -27,8 +31,13 @@ class FaceDetector:
         self.forehead_callback = None
         self.bottom_face_callback = None
 
-    def run(self):
+    def run(self, bdf_file):
         self.start = time.time()
+
+        # Start bdf processor
+        if bdf_file and bdf_file != "None":
+            bdf_processor = BdfProcessor(bdf_file)
+            bdf_processor.run()
         rospy.Subscriber(self.topic, Image, self.on_image)
 
     def on_image(self, data, convert=True):

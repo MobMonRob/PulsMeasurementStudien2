@@ -95,8 +95,8 @@ class PulseMeasurement:
     def __init__(self):
         self.count = 0
         self.levels = 2
-        self.low = 0.8
-        self.high = 2
+        self.low = 0.6
+        self.high = 1.0
         self.amplification = 20
         self.pub_first = rospy.Publisher('eulerian_color_changes_first', Float32, queue_size=10)
         self.pub_second = rospy.Publisher('eulerian_color_changes_second', Float32, queue_size=10)

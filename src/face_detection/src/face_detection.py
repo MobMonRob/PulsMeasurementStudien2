@@ -1,8 +1,5 @@
 #!/usr/bin/env python
-<<<<<<< HEAD
-=======
 from bdf_processor import BdfProcessor
->>>>>>> master
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 

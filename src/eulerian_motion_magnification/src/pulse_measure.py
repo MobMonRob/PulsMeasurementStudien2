@@ -1,12 +1,19 @@
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+
+from __future__ import print_function
 import numpy as np
 import time
 import cv2
 import os
 import rospy
+import sys
+
 from std_msgs.msg import Float32
 import scipy.fftpack as fftpack
 from scipy.signal import butter, filtfilt, find_peaks
 import matplotlib.pyplot as plt
+from face_detection import FaceDetector
 
 
 def build_gaussian_pyramid(frame, level=3):
@@ -133,7 +140,7 @@ class PulseMeasurement:
         self.pub_second.publish(msg_to_publish_second)
         self.pub_third.publish(msg_to_publish_third)
 
-    def run(self, roi):
+    def start_calulation(self, roi):
         self.time_array.append(time.time())
         normalized = cv2.normalize(roi.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
         cropped = cv2.resize(normalized, (200, 200))
@@ -156,3 +163,37 @@ class PulseMeasurement:
                 # final = reconstruct_video(upsampled_final_amplified, upsampled_final_t, levels=3)
                 # show_video(final)
                 self.calculating_at = 0
+
+
+def main():
+    rospy.init_node('face_detection', anonymous=True, log_level=rospy.DEBUG)
+
+    # Get ROS topic from launch parameter
+    topic = rospy.get_param("~topic", "/webcam/image_raw")
+    rospy.loginfo("Listening on topic '" + topic + "'")
+
+    bdf_file = rospy.get_param("~bdf_file", "")
+    rospy.loginfo("Bdf file: '" + str(bdf_file) + "'")
+
+    cascade_file = rospy.get_param("~cascade_file", "")
+    rospy.loginfo("Cascade file: '" + str(cascade_file) + "'")
+
+    show_image_frame = rospy.get_param("~show_image_frame", False)
+    rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
+
+    pulse_processor = PulseMeasurement()
+
+    face_detector = FaceDetector(topic, cascade_file, show_image_frame)
+    face_detector.face_callback = pulse_processor.start_calulation
+    face_detector.run(bdf_file)
+
+    try:
+        rospy.spin()
+    except KeyboardInterrupt:
+        print("Shutting down")
+    cv2.destroyAllWindows()
+
+
+if __name__ == '__main__':
+    sys.argv = rospy.myargv()
+    main()

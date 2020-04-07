@@ -3,7 +3,7 @@
     <arg name="topic" default="/webcam/image_raw" />
     <arg name="cascade_file" default="$(find face_detection)/include/cascade.xml" />
     <arg name="show_image_frame" default="false" />
-    <arg name="fps" default="19" />
+    <arg name="fps" default="30" />
     <arg name="video_file" default="0"/>
     <include file="$(find video_stream_opencv)/launch/camera.launch" >
         <!-- node name and ros graph name -->

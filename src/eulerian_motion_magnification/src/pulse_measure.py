@@ -95,6 +95,7 @@ def calculate_pulse(upsampled_final_amplified, recorded_time):
     pulse = (len(peaks) / float(recorded_time)) * 60
     pulse = np.int16(pulse)
     print("pulse :" + str(pulse))
+    return pulse
 
 
 class PulseMeasurement:
@@ -105,9 +106,7 @@ class PulseMeasurement:
         self.low = 0.6
         self.high = 1.0
         self.amplification = 20
-        self.pub_first = rospy.Publisher('eulerian_color_changes_first', Float32, queue_size=10)
-        self.pub_second = rospy.Publisher('eulerian_color_changes_second', Float32, queue_size=10)
-        self.pub_third = rospy.Publisher('eulerian_color_changes_third', Float32, queue_size=10)
+        self.pub_pulse = rospy.Publisher('eulerian_color_changes_pulse', Float32, queue_size=10)
         self.fps = 23
         self.video_array = []
         self.start_time = 0
@@ -125,21 +124,10 @@ class PulseMeasurement:
         print(samplerate)
         return samplerate
 
-    def publish_color_changes(self, upsampled_final_amplified):
-        image = upsampled_final_amplified[-1, :, :, :]
+    def publish_pulse(self, pulse):
+        msg_to_publish = pulse
 
-        first_intensity = image[100][80][1]
-        msg_to_publish_first = first_intensity
-
-        second_intensity = image[100][100][1]
-        msg_to_publish_second = second_intensity
-
-        third_intensity = image[100][120][1]
-        msg_to_publish_third = third_intensity
-
-        self.pub_first.publish(msg_to_publish_first)
-        self.pub_second.publish(msg_to_publish_second)
-        self.pub_third.publish(msg_to_publish_third)
+        self.pub_pulse.publish(msg_to_publish)
 
     # calculate pulse after certain amount of images taken, calculation based on a larger amount of time
     def start_calulation(self, roi):
@@ -166,8 +154,8 @@ class PulseMeasurement:
                 amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
                 # upsampled_final_t = upsample_final_video(t, self.levels)
                 upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
-                calculate_pulse(upsampled_final_amplified, self.recording_time)
-                # self.publish_color_changes(upsampled_final_amplified)
+                pulse = calculate_pulse(upsampled_final_amplified, self.recording_time)
+                self.publish_pulse(pulse)
                 # final = reconstruct_video(upsampled_final_amplified, upsampled_final_t, levels=3)
                 # show_video(final)
                 self.calculating_at = 0

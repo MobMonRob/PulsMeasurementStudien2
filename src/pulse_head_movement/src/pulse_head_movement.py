@@ -39,8 +39,8 @@ class PulseHeadMovement:
         self.pub = rospy.Publisher('head_movement_pulse', pulse, queue_size=10)
         self.seq = 0
         self.prev_image = None
-        self.refresh_rate = 100
-        self.publish_rate = 25
+        self.refresh_rate = 300
+        self.publish_rate = 50
         self.fps = 0
         self.frame_index = 0
         self.buffer_points = []
@@ -271,6 +271,9 @@ def main():
     topic = rospy.get_param("~topic", "/webcam/image_raw")
     rospy.loginfo("Listening on topic '" + topic + "'")
 
+    video_file = rospy.get_param("~video_file", None)
+    rospy.loginfo("Video file input: '" + str(video_file) + "'")
+
     bdf_file = rospy.get_param("~bdf_file", "")
     rospy.loginfo("Bdf file: '" + str(bdf_file) + "'")
 
@@ -283,9 +286,9 @@ def main():
     # Start heart rate measurement
     pulse = PulseHeadMovement()
 
-    face_detector = FaceDetector(topic, cascade_file, show_image_frame)
+    face_detector = FaceDetector(topic, cascade_file)
     face_detector.mask_callback = pulse.pulse_callback
-    face_detector.run(bdf_file)
+    face_detector.run(video_file, bdf_file, show_image_frame)
 
     rospy.spin()
     rospy.loginfo("Shutting down")

@@ -6,7 +6,7 @@
     <arg name="bdf_file" default="None" />
     <node pkg="pulse_head_movement" type="pulse_head_movement.py" name="pulse_head_movement" output="screen">
         <param name="topic" type="string" value="$(arg topic)" />
-        <param name="show_image_frame" type="string" value="$(arg show_image_frame)" />
+        <param name="show_image_frame" type="bool" value="$(arg show_image_frame)" />
         <param name="cascade_file" type="string" value="$(arg cascade_file)" />
         <param name="bdf_file" type="string" value="$(arg bdf_file)" />
     </node>

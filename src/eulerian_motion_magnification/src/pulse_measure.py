@@ -50,7 +50,7 @@ def amplify_video(filtered_tensor, amplify):
     npa[:, :, :, 2] = np.multiply(npa[:, :, :, 2], amplify)
     return npa
 
-
+# go back with the gaussian pyramids to retain higher resolution image
 def upsample_final_video(final, levels):
     final_video = []
     for i in range(0, final.shape[0]):
@@ -69,7 +69,7 @@ def reconstruct_video(amplified_video, original_video, levels=3):
         final_video[i] = image
     return final_video
 
-
+# show many images after each other (show many images in buffer)
 def show_video(final):
     for image in final:
         time.sleep(0.15)
@@ -77,7 +77,7 @@ def show_video(final):
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-
+# showing images if buffer is similar to queue scenario
 def show_image(final):
     image = final[-1]
     cv2.imshow("final", image)
@@ -85,14 +85,14 @@ def show_image(final):
         pass
 
 
-def calculate_pulse(upsampled_final_amplified):
+def calculate_pulse(upsampled_final_amplified, recorded_time):
     green_values = []
     for i in range(0, upsampled_final_amplified.shape[0]):
         img = upsampled_final_amplified[i]
         green_intensity = img[100][100][1]
         green_values.append(green_intensity)
     peaks, _ = find_peaks(green_values)
-    pulse = len(peaks) * 2
+    pulse = (len(peaks) / float(recorded_time)) * 60
     pulse = np.int16(pulse)
     print("pulse :" + str(pulse))
 
@@ -115,6 +115,7 @@ class PulseMeasurement:
         self.buffer_size = 0
         self.time_array = []
         self.calculating_at = 50
+        self.recording_time = 30
 
     def calculate_fps(self):
         time_difference = self.time_array[-1] - self.time_array[0]
@@ -140,17 +141,24 @@ class PulseMeasurement:
         self.pub_second.publish(msg_to_publish_second)
         self.pub_third.publish(msg_to_publish_third)
 
+    # calculate pulse after certain amount of images taken, calculation based on a larger amount of time
     def start_calulation(self, roi):
+        # append timestamp to array
         self.time_array.append(time.time())
+        # normalize, resize and downsample image
         normalized = cv2.normalize(roi.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
         cropped = cv2.resize(normalized, (200, 200))
         gaussian_frame = build_gaussian_frame(cropped, self.levels)
         self.video_array.append(gaussian_frame)
-        if (self.time_array[-1] - self.time_array[0]) >= 30:
+        # check if recording images took longer than certain amount of time
+        if (self.time_array[-1] - self.time_array[0]) >= self.recording_time:
+            # determine how many pictures got buffered during time interval
             self.buffer_size = (len(self.time_array))
+            # release first image and timestamp
             self.video_array.pop(0)
             self.time_array.pop(0)
             self.calculating_at = self.calculating_at + 1
+            # calculate again after certain amount of images
             if self.calculating_at >= 50:
                 self.calculate_fps()
                 t = np.asarray(self.video_array, dtype=np.float32)
@@ -158,7 +166,7 @@ class PulseMeasurement:
                 amplified_video = amplify_video(filtered_tensor, amplify=self.amplification)
                 # upsampled_final_t = upsample_final_video(t, self.levels)
                 upsampled_final_amplified = upsample_final_video(amplified_video, self.levels)
-                calculate_pulse(upsampled_final_amplified)
+                calculate_pulse(upsampled_final_amplified, self.recording_time)
                 # self.publish_color_changes(upsampled_final_amplified)
                 # final = reconstruct_video(upsampled_final_amplified, upsampled_final_t, levels=3)
                 # show_video(final)

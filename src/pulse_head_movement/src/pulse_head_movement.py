@@ -10,15 +10,14 @@ import rospy
 from pulse_chest_strap.msg import pulse
 from scipy import interpolate
 from scipy import stats
+from scipy import fftpack
 from scipy.interpolate import CubicSpline
-from scipy.signal import butter, lfilter, filtfilt, find_peaks
+from scipy.signal import butter, lfilter, filtfilt, find_peaks, welch
 from cv_bridge import CvBridge, CvBridgeError
 from sklearn.decomposition import PCA
 import pandas as pd
 import matplotlib.pyplot as plt
 from face_detection import FaceDetector
-
-
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
@@ -218,11 +217,12 @@ class PulseHeadMovement:
         """
         self.calculate_fps(time_array)
         stable_signal = self.remove_erratic_trajectories(y_tracking_signal)
-        filtered_signal = self.apply_butterworth_filter(stable_signal, time_array)
+        interpolated_points = self.interpolate_points(stable_signal, time_array)
+        filtered_signal = self.apply_butterworth_filter(interpolated_points, time_array)
         less_movement = self.discard_much_movement(filtered_signal)
         pca_array = self.process_PCA(less_movement, time_array)
-        signal = self.find_most_periodic_signal(pca_array, time_array)
-        pulse = self.calculate_pulse(signal, time_array)
+        signal, frequency = self.find_most_periodic_signal(pca_array, time_array)
+        pulse = self.calculate_pulse(signal, frequency, time_array)
         self.publish_pulse(pulse, publish_time)
         return
 
@@ -307,45 +307,43 @@ class PulseHeadMovement:
                 filtered_signal[point_index][filtered_point_index] = filtered_point
         # uncomment the following lines to see the interpolated signal
         # for a random point (i.e. at position 6). For debugging.
-        filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_before_filter"
-        stepsize = 1. / sample_rate
-        xs = np.arange(time_array[0], time_array[-1], stepsize)
-        plt.figure(figsize=(6.5, 4))
-        plt.plot(time_array, input_signal[6], label="S")
-        plt.savefig(filename)
-        plt.close()
-        filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "filter"
-        stepsize = 1. / sample_rate
-        xs = np.arange(time_array[0], time_array[-1], stepsize)
-        plt.figure(figsize=(6.5, 4))
-        plt.plot(time_array, filtered_signal[6], label="S")
-        plt.savefig(filename)
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_before_filter"
+        # stepsize = 1. / sample_rate
+        # xs = np.arange(time_array[0], time_array[-1], stepsize)
+        # plt.figure(figsize=(6.5, 4))
+        # plt.plot(time_array, input_signal[6], label="S")
+        # plt.savefig(filename)
+        # plt.close()
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "filter"
+        # stepsize = 1. / sample_rate
+        # xs = np.arange(time_array[0], time_array[-1], stepsize)
+        # plt.figure(figsize=(6.5, 4))
+        # plt.plot(xs, filtered_signal[6], label="S")
+        # plt.savefig(filename)
+        # plt.close()
         return filtered_signal
 
     def discard_much_movement(self, signal):
         """
         Discard the tracking point with the highest movements.
         The parameter alpha determines, how much percent of the points should be removed.
-        :param signal: the signal to filter resulting from apply_butterwort_filter
+        :param signal: the signal to filter resulting from apply_butterworth_filter
         """
         alpha = 0.25
         number_of_rows_to_discard = int(alpha*np.size(signal, 0))
         number_of_rows_to_keep = np.size(signal, 0) - number_of_rows_to_discard
-        filtered_signal = np.empty([number_of_rows_to_keep, self.refresh_rate])
+        filtered_signal = np.empty([number_of_rows_to_keep, np.size(signal, 1)])
         square_signal = np.square(signal)
         square_sum = np.sum(square_signal, axis=1)
         square_sum = np.squeeze(square_sum)
         square_root = np.sqrt(square_sum)
         indices_to_discard = square_root.argsort()[-number_of_rows_to_discard:][::-1]
-        print(square_root)
-        print(indices_to_discard)
         filtered_signal_index = 0
         for row_index, row in enumerate(signal):
             if row_index not in indices_to_discard:
                 filtered_signal[filtered_signal_index] = row
                 filtered_signal_index += 1
         return filtered_signal
-
 
     def process_PCA(self, filtered_signal, time_array):
         """
@@ -355,10 +353,10 @@ class PulseHeadMovement:
         """
         filtered_signal = filtered_signal.transpose()
         pca = PCA(n_components=5)
-        pca_array=pca.fit_transform(filtered_signal)
+        pca_array = pca.fit_transform(filtered_signal)
         pca_array = pca_array.transpose()
         # uncomment the following lines to see the signal after PCA. For debugging.
-        # filename = "/home/studienarbeit/Dokumente/" + str(self.seq) + "_pca_signal_"
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_pca_signal_"
         # sample_rate = len(filtered_signal[0]) / (time_array[-1] - time_array[0])
         # stepsize = 1. / sample_rate
         # xs = np.arange(time_array[0], time_array[-1], stepsize)
@@ -375,13 +373,31 @@ class PulseHeadMovement:
         :param pca_array: the array resulting from process_PCA
         :param time_array:
         """
-        highest_correlation = 0
+        sample_rate = len(pca_array[0]) / (time_array[-1] - time_array[0])
         best_signal = None
-        for signal in pca_array:
-            series = pd.Series(signal)
-            autocorrelation = series.autocorr()
-            if autocorrelation > highest_correlation:
-                best_signal = signal
+        highest_y_value = 0
+        best_frequency = 0
+        for ind,signal in enumerate(pca_array):
+            f, Pxx_den = welch(signal, sample_rate)
+            filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_periodic_pca_signal_" + str(ind)
+            # plt.semilogy(f, Pxx_den)
+            spectrum, frequencies,_ = plt.magnitude_spectrum(signal, Fs=sample_rate)
+            max_index = np.argmax(spectrum)
+            best_frequency = frequencies[max_index]
+            print(best_frequency*60)
+            # plt.xlim(0, 10)
+            # plt.savefig(filename)
+            # plt.close()
+            # ymax = max(Pxx_den)
+            # xpos = np.where(Pxx_den == ymax)[0]
+            # xmax = f[xpos][0]
+            # power_spectrum = sum(Pxx_den)
+            # if power_spectrum > highest_y_value:
+            #     highest_y_value = power_spectrum
+            #     best_frequency = xmax
+            #     best_signal = signal
+            # print(ymax)
+            # print(xmax)
         # uncomment the following lines to see the most periodic signal of the PCA. For debugging.
         # filename = "/home/studienarbeit/Dokumente/" + str(self.seq) + "_periodic_pca_signal_"
         # sample_rate = len(pca_array[0]) / (time_array[-1] - time_array[0])
@@ -391,29 +407,18 @@ class PulseHeadMovement:
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, best_signal, label="S")
         # plt.show()
-        return best_signal
+        return best_signal, best_frequency
 
-    def calculate_pulse(self, signal, time_array):
+    def calculate_pulse(self, signal, frequency, time_array):
         """
         calculates the pulse value from the processed signal.
         Uses automatic peak detection and divides number of peaks through measured
         this is multiplied by 60 to get bpm.
         :param signal: the finally processed signal
         """
-        peaks,_ = find_peaks(signal, prominence=(0.3,None))
-        measured_time = time_array[-1] - time_array[0]
-        pulse = (len(peaks) / measured_time) * 60
+        pulse = frequency*60
         pulse = np.int16(pulse)
         rospy.loginfo("Pulse: " + str(pulse))
-        # uncomment the following lines to see the final signal with the detected peaks. For debugging.
-        # sample_rate = len(signal) / (time_array[-1] - time_array[0])
-        # stepsize = 1. / sample_rate
-        # xs = np.arange(time_array[0], time_array[-1], stepsize)
-        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_final_signal_"
-        # plt.figure(figsize=(6.5, 4))
-        # plt.plot(xs, signal, label="S")
-        # plt.plot(xs[peaks], signal[peaks], "x")
-        # plt.savefig(filename)
         return pulse
 
     def publish_pulse(self, pulse_value, publish_time):

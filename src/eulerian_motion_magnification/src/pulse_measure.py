@@ -45,9 +45,9 @@ def temporal_ideal_filter(gau_video, lowcut, highcut, fps, axis=0):
 
 def amplify_video(filtered_tensor, amplify):
     npa = np.asarray(filtered_tensor, dtype=np.float32)
-    npa[:, :, :, 0] = np.multiply(npa[:, :, :, 0], amplify)
+    #npa[:, :, :, 0] = np.multiply(npa[:, :, :, 0], amplify)
     npa[:, :, :, 1] = np.multiply(npa[:, :, :, 1], amplify)
-    npa[:, :, :, 2] = np.multiply(npa[:, :, :, 2], amplify)
+    #npa[:, :, :, 2] = np.multiply(npa[:, :, :, 2], amplify)
     return npa
 
 # go back with the gaussian pyramids to retain higher resolution image
@@ -92,6 +92,7 @@ def calculate_pulse(upsampled_final_amplified, recorded_time):
         green_intensity = img[100][100][1]
         green_values.append(green_intensity)
     peaks, _ = find_peaks(green_values)
+    print("peaks: " + str(peaks))
     pulse = (len(peaks) / float(recorded_time)) * 60
     pulse = np.int16(pulse)
     print("pulse :" + str(pulse))
@@ -105,16 +106,14 @@ class PulseMeasurement:
         self.levels = 2
         self.low = 0.6
         self.high = 1.0
-        self.amplification = 20
+        self.amplification = 300
         self.pub_pulse = rospy.Publisher('eulerian_color_changes_pulse', Float32, queue_size=10)
-        self.fps = 23
+        self.fps = 30
         self.video_array = []
-        self.start_time = 0
-        self.end_time = 0
         self.buffer_size = 0
         self.time_array = []
-        self.calculating_at = 50
-        self.recording_time = 30
+        self.calculating_at = 100
+        self.recording_time = 10
 
     def calculate_fps(self):
         time_difference = self.time_array[-1] - self.time_array[0]
@@ -148,6 +147,7 @@ class PulseMeasurement:
             self.calculating_at = self.calculating_at + 1
             # calculate again after certain amount of images
             if self.calculating_at >= 50:
+                print(len(self.video_array))
                 self.calculate_fps()
                 t = np.asarray(self.video_array, dtype=np.float32)
                 filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)

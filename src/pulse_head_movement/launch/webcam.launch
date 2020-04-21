@@ -2,15 +2,13 @@
 <launch>
     <arg name="topic" default="/webcam/image_raw" />
     <arg name="cascade_file" default="$(find face_detection)/include/cascade.xml" />
-    <arg name="show_image_frame" default="true" />
+    <arg name="show_image_frame" default="false" />
     <arg name="fps" default="30" />
-    <arg name="video_file" default="0"/>
-    <arg name="bdf_file" default="None" />
     <include file="$(find video_stream_opencv)/launch/camera.launch" >
         <!-- node name and ros graph name -->
         <arg name="camera_name" value="webcam" />
         <!-- means video device 0, /dev/video0 -->
-        <arg name="video_stream_provider" value="$(arg video_file)" />
+        <arg name="video_stream_provider" value="0)" />
         <!-- set camera fps to (if the device allows) -->
         <arg name="set_camera_fps" value="$(arg fps)"/>
         <!-- set buffer queue size of frame capturing to (1 means we want the latest frame only) -->
@@ -33,6 +31,5 @@
         <arg name="topic" value="$(arg topic)" />
         <arg name="show_image_frame" value="$(arg show_image_frame)" />
         <arg name="cascade_file" value="$(arg cascade_file)" />
-        <arg name="bdf_file" value="$(arg bdf_file)" />
     </include>
 </launch>

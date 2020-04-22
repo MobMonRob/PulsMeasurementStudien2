@@ -117,9 +117,10 @@ class PulseMeasurement:
 
     def calculate_fps(self):
         time_difference = self.time_array[-1] - self.time_array[0]
-        if time_difference == 0:
+        time_difference_in_seconds = time_difference.to_sec()
+        if time_difference_in_seconds == 0:
             pass
-        samplerate = self.buffer_size / time_difference
+        samplerate = self.buffer_size / time_difference_in_seconds
         print(samplerate)
         return samplerate
 
@@ -129,16 +130,18 @@ class PulseMeasurement:
         self.pub_pulse.publish(msg_to_publish)
 
     # calculate pulse after certain amount of images taken, calculation based on a larger amount of time
-    def start_calulation(self, roi):
+    def start_calulation(self, roi, timestamp):
         # append timestamp to array
-        self.time_array.append(time.time())
+        self.time_array.append(timestamp)
         # normalize, resize and downsample image
         normalized = cv2.normalize(roi.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
         cropped = cv2.resize(normalized, (200, 200))
         gaussian_frame = build_gaussian_frame(cropped, self.levels)
         self.video_array.append(gaussian_frame)
         # check if recording images took longer than certain amount of time
-        if (self.time_array[-1] - self.time_array[0]) >= self.recording_time:
+        time_difference = self.time_array[-1] - self.time_array[0]
+        time_difference_in_seconds = time_difference.to_sec()
+        if (time_difference_in_seconds) >= self.recording_time:
             # determine how many pictures got buffered during time interval
             self.buffer_size = (len(self.time_array))
             # release first image and timestamp
@@ -168,6 +171,9 @@ def main():
     topic = rospy.get_param("~topic", "/webcam/image_raw")
     rospy.loginfo("Listening on topic '" + topic + "'")
 
+    video_file = rospy.get_param("~video_file", None)
+    rospy.loginfo("Video file input: '" + str(video_file) + "'")
+
     bdf_file = rospy.get_param("~bdf_file", "")
     rospy.loginfo("Bdf file: '" + str(bdf_file) + "'")
 
@@ -179,9 +185,9 @@ def main():
 
     pulse_processor = PulseMeasurement()
 
-    face_detector = FaceDetector(topic, cascade_file, show_image_frame)
+    face_detector = FaceDetector(topic, cascade_file)
     face_detector.face_callback = pulse_processor.start_calulation
-    face_detector.run(bdf_file)
+    face_detector.run(video_file, bdf_file, show_image_frame)
 
     try:
         rospy.spin()

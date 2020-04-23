@@ -31,18 +31,7 @@ sudo sh -c 'echo "yaml https://raw.githubusercontent.com/basler/pylon-ros-camera
 
 ## Face Detection
 
-You can use either the pylon-ros-camera or the video_stream_opencv package to provide image data for the face detection.
-
-#### Run
-
-```sh
-source devel/setup.bash
-# Run one of the following launch files
-# if you want to use the industry camera
-roslaunch face_detection industry_camera.launch
-# if you want to use the webcam
-roslaunch face_detection webcam.launch
-```
+You can use either the pylon-ros-camera, the video_stream_opencv package or a video file to provide image data for the face detection.
 
 ## Measure Pulse from Head movement
 

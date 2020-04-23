@@ -58,7 +58,6 @@ class PulseHeadMovement:
         # the publish rate specifies how many frames are between each published pulse value
         self.publish_rate = 50
         self.frame_index = 0
-        # TODO umbenennen in buffer_previous_points
         # current positions of the tracking point for each buffer position
         # three dimensional array of the form
         # [buffer_position][point][x/y], so e.g.
@@ -67,7 +66,6 @@ class PulseHeadMovement:
         #   ...]
         #   for each point
         self.buffer_points = []
-        # TODO time array in x tracking signal???
         # time for each buffer meaning the times associated with the frames of this buffer
         # two dimensional array of the form
         # [buffer_position][y_points
@@ -119,7 +117,6 @@ class PulseHeadMovement:
             # replace old [x,y] positions of tracking points in buffer_points array
             self.buffer_points[buffer_index] = new_points
             # time position of each point meaning the sequential position of the points for each buffer position
-            # TODO richtig???
             time_position = ((self.frame_index - 1) % self.publish_rate) + buffer_index * self.publish_rate
             # add y point in the time movement for the points
             for tracking_point_index, point in enumerate(new_points):
@@ -161,8 +158,6 @@ class PulseHeadMovement:
         https://docs.opencv.org/master/d4/d8c/tutorial_py_shi_tomasi.html and
         https://docs.opencv.org/2.4/modules/imgproc/doc/feature_detection.html
         """
-        # histogram of the image is equalized to increase contrast
-        # image = cv2.equalizeHist(image)
         # get the tracking points in the bottom face region
         bottom_feature_params = dict(maxCorners=100, qualityLevel=0.01, minDistance=7, blockSize=7)
         bottom_points = cv2.goodFeaturesToTrack(image, mask=bottom_mask, **bottom_feature_params)
@@ -268,7 +263,9 @@ class PulseHeadMovement:
         :param y_tracking_signal: the signal resulting from remove_erratic_trajectories
         :param time_array:
         """
-        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_before_interp_move_signal_"
+        # uncomment the following lines to see the signal before  interpolation
+        # for a random point (i.e. at position 6). For debugging.
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_step1_before_interp_move_signal_"
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(time_array, y_tracking_signal[6], label="S")
         # plt.savefig(filename)
@@ -283,10 +280,10 @@ class PulseHeadMovement:
             for interpolated_point_index, point in enumerate(array_interpolated):
                 interpolated_points[point_index][interpolated_point_index] = point
         # uncomment the following lines to see the interpolated signal
-        # for a random point (i.e. at position 8). For debugging.
-        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_move_signal_"
+        # for a random point (i.e. at position 6). For debugging.
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_step2_move_signal_"
         # plt.figure(figsize=(6.5, 4))
-        # plt.plot(interpolated_time, interpolated_points[8], label="S")
+        # plt.plot(interpolated_time, interpolated_points[6], label="S")
         # plt.savefig(filename)
         return interpolated_points
 
@@ -305,16 +302,9 @@ class PulseHeadMovement:
             filtered_points = butter_bandpass_filter(point, lowcut, highcut, sample_rate, order=5)
             for filtered_point_index, filtered_point in enumerate(filtered_points):
                 filtered_signal[point_index][filtered_point_index] = filtered_point
-        # uncomment the following lines to see the interpolated signal
+        # uncomment the following lines to see the filtered signal
         # for a random point (i.e. at position 6). For debugging.
-        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_before_filter"
-        # stepsize = 1. / sample_rate
-        # xs = np.arange(time_array[0], time_array[-1], stepsize)
-        # plt.figure(figsize=(6.5, 4))
-        # plt.plot(time_array, input_signal[6], label="S")
-        # plt.savefig(filename)
-        # plt.close()
-        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "filter"
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_step3_filter"
         # stepsize = 1. / sample_rate
         # xs = np.arange(time_array[0], time_array[-1], stepsize)
         # plt.figure(figsize=(6.5, 4))
@@ -351,12 +341,12 @@ class PulseHeadMovement:
         :param filtered_signal: the signal resulting from discard_much_movement
         :param time_array:
         """
-        filtered_signal = filtered_signal.transpose()
+        filtered_signal_transposed = filtered_signal.transpose()
         pca = PCA(n_components=5)
-        pca_array = pca.fit_transform(filtered_signal)
+        pca_array = pca.fit_transform(filtered_signal_transposed)
         pca_array = pca_array.transpose()
         # uncomment the following lines to see the signal after PCA. For debugging.
-        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_pca_signal_"
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_step4_pca_signal_"
         # sample_rate = len(filtered_signal[0]) / (time_array[-1] - time_array[0])
         # stepsize = 1. / sample_rate
         # xs = np.arange(time_array[0], time_array[-1], stepsize)
@@ -375,29 +365,27 @@ class PulseHeadMovement:
         """
         sample_rate = len(pca_array[0]) / (time_array[-1] - time_array[0])
         best_signal = None
-        highest_y_value = 0
         best_frequency = 0
-        for ind,signal in enumerate(pca_array):
-            f, Pxx_den = welch(signal, sample_rate)
-            filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_periodic_pca_signal_" + str(ind)
-            # plt.semilogy(f, Pxx_den)
+        best_correlation = 0
+        for ind, signal in enumerate(pca_array):
             spectrum, frequencies,_ = plt.magnitude_spectrum(signal, Fs=sample_rate)
             max_index = np.argmax(spectrum)
-            best_frequency = frequencies[max_index]
-            print(best_frequency*60)
+            strongest_frequency = frequencies[max_index]
+            T_i = int(sample_rate/strongest_frequency)
+            s_i_new = np.roll(signal, T_i)
+            correlation = stats.pearsonr(s_i_new, signal)[0]
+
+            if correlation > best_correlation:
+                best_frequency = strongest_frequency
+                best_correlation = correlation
+                best_signal = signal
+
+            #  uncomment the following lines to see the magnitude spectrum of the PCA singal. For debugging.
+            # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_step5_periodic_pca_signal_" + str(ind)
             # plt.xlim(0, 10)
             # plt.savefig(filename)
             # plt.close()
-            # ymax = max(Pxx_den)
-            # xpos = np.where(Pxx_den == ymax)[0]
-            # xmax = f[xpos][0]
-            # power_spectrum = sum(Pxx_den)
-            # if power_spectrum > highest_y_value:
-            #     highest_y_value = power_spectrum
-            #     best_frequency = xmax
-            #     best_signal = signal
-            # print(ymax)
-            # print(xmax)
+
         # uncomment the following lines to see the most periodic signal of the PCA. For debugging.
         # filename = "/home/studienarbeit/Dokumente/" + str(self.seq) + "_periodic_pca_signal_"
         # sample_rate = len(pca_array[0]) / (time_array[-1] - time_array[0])
@@ -407,6 +395,7 @@ class PulseHeadMovement:
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, best_signal, label="S")
         # plt.show()
+        print(best_frequency)
         return best_signal, best_frequency
 
     def calculate_pulse(self, signal, frequency, time_array):
@@ -416,9 +405,21 @@ class PulseHeadMovement:
         this is multiplied by 60 to get bpm.
         :param signal: the finally processed signal
         """
-        pulse = frequency*60
+        sample_rate = len(signal) / (time_array[-1] - time_array[0])
+        distance = 0.5*(sample_rate/frequency)
+        peaks, _ = find_peaks(signal, distance=distance)
+        measured_time = time_array[-1] - time_array[0]
+        pulse = (len(peaks) / measured_time) * 60
         pulse = np.int16(pulse)
         rospy.loginfo("Pulse: " + str(pulse))
+        # uncomment the following lines to see the final singal with the detected peaks. For debugging.
+        # stepsize = 1. / sample_rate
+        # xs = np.arange(time_array[0], time_array[-1], stepsize)
+        # filename = "/home/studienarbeit/Dokumente/" + str(self.published_pulse_value_sequence) + "_step6_final_signal_"
+        # plt.figure(figsize=(6.5, 4))
+        # plt.plot(xs, signal, label="S")
+        # plt.plot(xs[peaks], signal[peaks], "x")
+        # plt.savefig(filename)
         return pulse
 
     def publish_pulse(self, pulse_value, publish_time):

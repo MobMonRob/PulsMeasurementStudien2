@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="show_plot" default="false"/>
+    <include file="$(find face_detection)/launch/idustry_camera.launch" />
+    <include file="$(find pulse_head_movement)/launch/pulse_head_movement.launch">
+        <arg name="topic" value="/face_detection/forehead" />
+    </include>
+    <group if="$(arg show_plot)">
+        <node name="pulse_plot" pkg="plotjuggler" type="PlotJuggler" args="--layout $(find pulse_head_movement)/launch/pulse_head_movement_config.xml"/>
+    </group>
+</launch>

@@ -70,7 +70,7 @@ def upsample_final_video(final, levels):
     for i in range(0, final.shape[0]):
         img = final[i]
         for x in range(levels):
-            img = cv2.pyrUp(img)
+            img = cv2.pyrUp(np.float32(img))
         final_video.append(img)
     return np.asarray(final_video, dtype=np.float32)
 
@@ -124,7 +124,7 @@ class PulseMeasurement:
         self.time_array = []
         self.calculating_at = 0
         self.calculating_boarder = 50
-        self.recording_time = 10
+        self.recording_time = 5
         self.first_time = True
 
     def calculate_fps(self):
@@ -152,30 +152,34 @@ class PulseMeasurement:
         if self.first_time:
             self.video_array.append(green_values_images)
         else:
-            print(self.video_array.shape)
-            print(green_values_images.shape)
-            np.append(self.video_array, green_values_images)
+            green_values_images = np.expand_dims(green_values_images, axis=0)
+            self.video_array = np.append(self.video_array, green_values_images, axis=0)
+            print("length append " + str(len(self.video_array)))
         # check if recording images took longer than certain amount of time
         time_difference = self.time_array[-1] - self.time_array[0]
         time_difference_in_seconds = time_difference.to_sec()
         if time_difference_in_seconds >= self.recording_time:
             self.buffer_size = (len(self.time_array))
             if self.first_time:
+                print("first time")
                 self.calculate_fps()
                 what_to_filter = np.asarray(self.video_array, dtype=np.float32)
                 self.video_array = do_filtering_on_all(what_to_filter, self.low, self.high, self.fps)
                 self.first_time = False
             # determine how many pictures got buffered during time interval
             # release first image and timestamp
-            if self.first_time:
-                self.video_array.pop(0)
-            else:
-                np.delete(self.video_array, 0, 0)
+            #print("-----")
+            #print("one" + str(self.video_array[0]))
+            #print("two" + str(self.video_array[1]))
+            print("length1 " + str(len(self.video_array)))
+            self.video_array = np.delete(self.video_array, 0, 0)
+            #print("compare" + str(self.video_array[0]))
             self.time_array.pop(0)
             self.calculating_at = self.calculating_at + 1
+            print("length2 " + str(len(self.video_array)))
             # calculate again after certain amount of images
             if self.calculating_at >= self.calculating_boarder:
-                print(len(self.video_array))
+                print("length final " + str(len(self.video_array)))
                 self.calculate_fps()
                 t = np.asarray(self.video_array, dtype=np.float32)
                 filtered_tensor = temporal_ideal_filter(t, self.low, self.high, self.fps)

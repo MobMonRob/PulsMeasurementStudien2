@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import cv2
 import rospy
-from pulse_chest_strap.msg import pulse
+from pulse_chest_strap.msg import Pulse
 from scipy import interpolate
 from scipy import stats
 from scipy import fftpack
@@ -48,7 +48,7 @@ class PulseHeadMovement:
         # bridge to convert ROS image to OpenCV image
         self.bridge = CvBridge()
         # set up ROS publisher
-        self.pub = rospy.Publisher('head_movement_pulse', pulse, queue_size=10)
+        self.pub = rospy.Publisher('head_movement_pulse', Pulse, queue_size=10)
         # sequence of published pulse values, published with each pulse message
         self.published_pulse_value_sequence = 0
         # previous image is needed for lucas kanade optical flow tracker (see calculate_optical_flow method)
@@ -428,7 +428,7 @@ class PulseHeadMovement:
         :param pulse_value: the calculated pulse value
         :param publish_time: the timestamp of the last incoming frame
         """
-        msg_to_publish = pulse()
+        msg_to_publish = Pulse()
         msg_to_publish.pulse = pulse_value
         msg_to_publish.time.stamp = publish_time
         msg_to_publish.time.seq = self.published_pulse_value_sequence

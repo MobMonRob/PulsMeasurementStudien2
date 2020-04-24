@@ -1,5 +1,5 @@
 from mne.preprocessing.ecg import qrs_detector
-from face_detection.msg import ECG
+from pulse_chest_strap.msg import Pulse
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +17,7 @@ class BdfProcessor:
         self.frequency = None
         self.heart_rates = None
         self.total_average_heart_rate = None
-        self.ecg_publisher = rospy.Publisher("/face_detection/ecg", ECG, queue_size=10)
+        self.pulse_publisher = rospy.Publisher("/face_detection/pulse", Pulse, queue_size=10)
 
     def run(self):
         self.signal, self.frequency = self.get_signal(name='EXG2')
@@ -55,9 +55,10 @@ class BdfProcessor:
         # Determine start end end of video file in signal with status bits
         video_start = status[0]
         video_end = status[-1]
+        video_length = video_end - video_start
 
         # Read ECG signal and return as tuple with sample frequency
-        return reader.readSignal(index, video_start, video_end - video_start), frequency
+        return reader.readSignal(index, video_start), frequency
 
     def calculate_heart_rates(self, peaks, frequency):
         rates = (frequency * 60) / np.diff(peaks)
@@ -77,12 +78,12 @@ class BdfProcessor:
         return heart_rates
 
     def publish_pulse(self, pulse, time):
-        ros_msg = ECG()
+        ros_msg = Pulse()
         ros_msg.pulse = pulse
         ros_msg.time.stamp = time
         ros_msg.time.seq = self.pulse_sequence
 
-        self.ecg_publisher.publish(ros_msg)
+        self.pulse_publisher.publish(ros_msg)
         self.pulse_sequence += 1
 
     def estimate_average_heartrate(self, signal, sampling_frequency):

@@ -1,13 +1,10 @@
+from scipy import signal
+from pulse_chest_strap.msg import Pulse
+
 import numpy as np
 import time
 import cv2
-import pylab
-import os
-import sys
-from scipy import signal
-from matplotlib.ticker import FuncFormatter
-from matplotlib.ticker import FormatStrFormatter
-
+import rospy
 import matplotlib.pyplot as plt
 
 
@@ -29,11 +26,15 @@ class PulseMeasurement(object):
         self.bpm = 0
         self.MAX_BPM = 150
         self.MIN_BPM = 40
+        self.pulse_sequence = 0
+        self.pulse_publisher = rospy.Publisher("/legacy_measurement/pulse", Pulse, queue_size=10)
+        self.count = 0
 
     def extractGreenColorChannel(self, frame):
         return frame[:, :, 1]
 
-    def run(self, roi):
+    def run(self, roi, timestamp):
+        self.count += 1
         self.times.append(time.time() - self.t0)
         self.roi = roi
         self.gray = cv2.equalizeHist(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY))
@@ -59,10 +60,10 @@ class PulseMeasurement(object):
         processed = np.array(self.data_buffer)
 
         # start heart rate measurment after 10 frames
-        if L == self.buffer_size:
+        if L == self.buffer_size and self.count % 30 == 0:
             # calculate fps
             # self.fps = float(L) / (self.times[-1] - self.times[0])
-            self.fps = 30
+            self.fps = 61
 
             # calculate equidistant frame times
             # even_times = np.linspace(self.times[0], self.times[-1], L)
@@ -104,18 +105,13 @@ class PulseMeasurement(object):
                 idx2 = np.argmax(self.fft)
                 self.bpm = self.freqs[idx2]
                 self.bpms.append(self.bpm)
-                self.visualize_heart_rate(raw, idx, idx2)
+                self.publish_pulse(self.bpm, timestamp)
+                rospy.loginfo("BPM: " + str(self.bpm))
 
         self.samples = processed
 
-        # visualize data
-        # if L == self.buffer_size:
-        #     green_mean_visualized = np.zeros((100,100,3))
-        #     green_mean_visualized[:,:,2] += (self.data_buffer[-1] - np.mean(self.data_buffer))
-        #     cv2.imshow('test',green_mean_visualized)
-
         # plot fourrier transform
-        if L == self.buffer_size:
+        if L == self.buffer_size and self.count % 30 == 0:
             index = np.arange(len(self.data_buffer))
 
             data = self.data_buffer - np.mean(self.data_buffer)
@@ -139,44 +135,11 @@ class PulseMeasurement(object):
 
         return self.roi
 
-    def visualize_heart_rate(self, raw, idx, idx2):
-        phase = np.angle(raw)
-        phase = phase[idx]
+    def publish_pulse(self, pulse, timestamp):
+        ros_msg = Pulse()
+        ros_msg.pulse = pulse
+        ros_msg.time.stamp = timestamp
+        ros_msg.time.seq = self.pulse_sequence
 
-        t = (np.sin(phase[idx2]) + 1.) / 2.
-        t = 0.9 * t + 0.1
-        alpha = t
-        beta = 1 - t
-
-        r = alpha * self.roi[:, :, 0]
-        g = alpha * self.roi[:, :, 1] + \
-            beta * self.gray
-        b = alpha * self.roi[:, :, 2]
-        self.roi = cv2.merge([r, g, b])
-        self.slices = [np.copy(self.roi[:, :, 1])]
-
-    def butter_bandpass(self, lowcut, highcut, fs, order=5):
-        nyq = 0.5 * fs
-        low = lowcut / nyq
-        high = highcut / nyq
-        b, a = signal.butter(order, [low, high], btype='band')
-        return b, a
-
-    def butter_bandpass_filter(self, data, lowcut, highcut, fs, order=5):
-        b, a = self.butter_bandpass(lowcut, highcut, fs, order=order)
-        y = signal.lfilter(b, a, data)
-        return y
-
-    def reset(self):
-        self.frame_in = np.zeros((10, 10, 3), np.uint8)
-        self.frame_ROI = np.zeros((10, 10, 3), np.uint8)
-        self.frame_out = np.zeros((10, 10, 3), np.uint8)
-        self.samples = []
-        self.times = []
-        self.data_buffer = []
-        self.fps = 0
-        self.fft = []
-        self.freqs = []
-        self.t0 = time.time()
-        self.bpm = 0
-        self.bpms = []
+        self.pulse_publisher.publish(ros_msg)
+        self.pulse_sequence += 1

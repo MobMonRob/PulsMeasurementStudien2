@@ -4,8 +4,8 @@ This repository is a student research project from three students from the Baden
 The approach of the project is to provide methods for contactless pulse measurement.
 
 To reach this approach, the repository contains different modules:
+* The face_detection package: This package contains common classes that are used in multiple packages like the face detector.
 * The eulerian_motion_magnification package: This package contains a contactless pulse measurement method which measures the pulse from little color changes in the face. 
-* The face_detection package: This is needed as the pulse is determined from the face of a person.
 * The legacy_measurement package: This package contains the implementation of a previous work on this topic. 
 * The pulse_chest_strap package: This package enables pulse measurement with the PolarH7 chest strap. It can be used as ground truth for the contactless method.
 * The pulse_head_movement package: This package contains a contactless pulse measurement method which measures the pulse from little head movements.

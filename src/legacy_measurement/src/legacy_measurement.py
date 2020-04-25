@@ -1,14 +1,20 @@
+#!/usr/bin/env python
+from __future__ import print_function
+from scipy import signal
+from face_detection import FaceDetector
+from face_detection import PulsePublisher
+
+import sys
 import numpy as np
 import time
 import cv2
-from scipy import signal
-
+import rospy
 import matplotlib.pyplot as plt
 
 
-class PulseMeasurement(object):
+class LegacyMeasurement(object):
 
-    def __init__(self, buffer_size=250):
+    def __init__(self):
         self.roi = np.zeros((10, 10))
         self.fps = 0
         self.buffer_size = 250
@@ -24,11 +30,12 @@ class PulseMeasurement(object):
         self.bpm = 0
         self.MAX_BPM = 150
         self.MIN_BPM = 40
+        self.pulse_sequence = 0
+        self.publisher = PulsePublisher("legacy_measurement")
+        self.count = 0
 
-    def extractGreenColorChannel(self, frame):
-        return frame[:, :, 1]
-
-    def run(self, roi):
+    def on_image(self, roi, timestamp):
+        self.count += 1
         self.times.append(time.time() - self.t0)
         self.roi = roi
         self.gray = cv2.equalizeHist(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY))
@@ -54,10 +61,10 @@ class PulseMeasurement(object):
         processed = np.array(self.data_buffer)
 
         # start heart rate measurment after 10 frames
-        if L == self.buffer_size:
+        if L == self.buffer_size and self.count % 30 == 0:
             # calculate fps
             # self.fps = float(L) / (self.times[-1] - self.times[0])
-            self.fps = 5
+            self.fps = 61
 
             # calculate equidistant frame times
             # even_times = np.linspace(self.times[0], self.times[-1], L)
@@ -99,18 +106,13 @@ class PulseMeasurement(object):
                 idx2 = np.argmax(self.fft)
                 self.bpm = self.freqs[idx2]
                 self.bpms.append(self.bpm)
-                self.visualize_heart_rate(raw, idx, idx2)
+                self.publisher.publish(self.bpm, timestamp)
+                rospy.loginfo("[LegacyMeasurement] BPM: " + str(self.bpm))
 
         self.samples = processed
 
-        # visualize data
-        # if L == self.buffer_size:
-        #     green_mean_visualized = np.zeros((100,100,3))
-        #     green_mean_visualized[:,:,2] += (self.data_buffer[-1] - np.mean(self.data_buffer))
-        #     cv2.imshow('test',green_mean_visualized)
-
         # plot fourrier transform
-        if L == self.buffer_size:
+        if L == self.buffer_size and self.count % 30 == 0:
             index = np.arange(len(self.data_buffer))
 
             data = self.data_buffer - np.mean(self.data_buffer)
@@ -134,44 +136,40 @@ class PulseMeasurement(object):
 
         return self.roi
 
-    def visualize_heart_rate(self, raw, idx, idx2):
-        phase = np.angle(raw)
-        phase = phase[idx]
+    def extractGreenColorChannel(self, frame):
+        return frame[:, :, 1]
 
-        t = (np.sin(phase[idx2]) + 1.) / 2.
-        t = 0.9 * t + 0.1
-        alpha = t
-        beta = 1 - t
 
-        r = alpha * self.roi[:, :, 0]
-        g = alpha * self.roi[:, :, 1] + \
-            beta * self.gray
-        b = alpha * self.roi[:, :, 2]
-        self.roi = cv2.merge([r, g, b])
-        self.slices = [np.copy(self.roi[:, :, 1])]
+def main():
+    rospy.init_node('legacy_measurement', anonymous=False, log_level=rospy.DEBUG)
 
-    def butter_bandpass(self, lowcut, highcut, fs, order=5):
-        nyq = 0.5 * fs
-        low = lowcut / nyq
-        high = highcut / nyq
-        b, a = signal.butter(order, [low, high], btype='band')
-        return b, a
+    # Get ROS topic from launch parameter
+    topic = rospy.get_param("~topic", "/webcam/image_raw")
+    rospy.loginfo("[LegacyMeasurement] Listening on topic '" + topic + "'")
 
-    def butter_bandpass_filter(self, data, lowcut, highcut, fs, order=5):
-        b, a = self.butter_bandpass(lowcut, highcut, fs, order=order)
-        y = signal.lfilter(b, a, data)
-        return y
+    video_file = rospy.get_param("~video_file", None)
+    rospy.loginfo("[LegacyMeasurement] Video file input: '" + str(video_file) + "'")
 
-    def reset(self):
-        self.frame_in = np.zeros((10, 10, 3), np.uint8)
-        self.frame_ROI = np.zeros((10, 10, 3), np.uint8)
-        self.frame_out = np.zeros((10, 10, 3), np.uint8)
-        self.samples = []
-        self.times = []
-        self.data_buffer = []
-        self.fps = 0
-        self.fft = []
-        self.freqs = []
-        self.t0 = time.time()
-        self.bpm = 0
-        self.bpms = []
+    bdf_file = rospy.get_param("~bdf_file", "")
+    rospy.loginfo("[LegacyMeasurement] Bdf file: '" + str(bdf_file) + "'")
+
+    cascade_file = rospy.get_param("~cascade_file", "")
+    rospy.loginfo("[LegacyMeasurement] Cascade file: '" + str(cascade_file) + "'")
+
+    show_image_frame = rospy.get_param("~show_image_frame", False)
+    rospy.loginfo("[LegacyMeasurement] Show image frame: '" + str(show_image_frame) + "'")
+
+    # Start heart rate measurement
+    pulse_measurement = LegacyMeasurement()
+
+    face_detector = FaceDetector(topic, cascade_file)
+    face_detector.bottom_face_callback = pulse_measurement.on_image
+    face_detector.run(video_file, bdf_file, show_image_frame)
+
+    rospy.spin()
+    rospy.loginfo("[LegacyMeasurement] Shutting down")
+
+
+if __name__ == '__main__':
+    sys.argv = rospy.myargv()
+    main()

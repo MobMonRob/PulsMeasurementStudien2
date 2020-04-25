@@ -2,7 +2,7 @@
 <launch>
     <arg name="topic" default="/webcam/image_raw" />
     <arg name="show_image_frame" default="false" />
-    <arg name="cascade_file" default="$(find face_detection)/include/cascade.xml" />
+    <arg name="cascade_file" default="$(find face_detection)/config/cascade.xml" />
     <arg name="video_file" default="" />
     <arg name="bdf_file" default="" />
     <arg name="show_plot" default="false"/>

@@ -31,20 +31,6 @@ def build_gaussian_frame(normalized, level):
     return gaussian_frame
 
 
-def change_unfiltered_images_against_filtered(gau_video, iff):
-    gau_video = gau_video[:-100]
-    gau_video = np.append(gau_video, iff, 0)
-    return gau_video
-
-
-def temporal_ideal_filter_amplify(gau_video, lowcut, highcut, fps, amplify):
-    new_frames_to_calculate = gau_video[-100:]
-    iff = do_filtering_on_all(new_frames_to_calculate, lowcut, highcut, fps)
-    iff = amplify_video(iff, amplify)
-    filtered_frames = change_unfiltered_images_against_filtered(gau_video, iff)
-    return np.abs(filtered_frames)
-
-
 def do_filtering_on_all(what_to_filter, low, high, fps):
     fft = fftpack.fft(what_to_filter, axis=0)
     frequencies = fftpack.fftfreq(what_to_filter.shape[0], d=1.0 / fps)
@@ -60,6 +46,7 @@ def do_filtering_on_all(what_to_filter, low, high, fps):
 def amplify_video(filtered_tensor, amplify):
     npa = np.asarray(filtered_tensor, dtype=np.float32)
     npa = np.multiply(npa, amplify)
+    npa = npa + filtered_tensor
     return npa
 
 
@@ -67,9 +54,9 @@ def calculate_pulse(upsampled_final_amplified, recorded_time):
     green_values = []
     for i in range(0, upsampled_final_amplified.shape[0]):
         img = upsampled_final_amplified[i]
-        green_intensity = img[25][25]
+        green_intensity = np.mean(img)
         green_values.append(green_intensity)
-    peaks, _ = find_peaks(green_values, prominence=0.15, width=10)
+    peaks, _ = find_peaks(green_values)
     pulse = (len(peaks) / float(recorded_time)) * 60
     pulse = np.int16(pulse)
     print(len(green_values))
@@ -82,7 +69,7 @@ def calculate_pulse(upsampled_final_amplified, recorded_time):
 
 
 def extract_green_values(gaussian_frame):
-    green_values = gaussian_frame[:, :, 1]
+    green_values = gaussian_frame[:, :, 2]
     return green_values
 
 
@@ -91,8 +78,8 @@ class PulseMeasurement:
     def __init__(self):
         self.count = 0
         self.levels = 2
-        self.low = 0.6
-        self.high = 1.0
+        self.low = 1.3
+        self.high = 1.7
         self.amplification = 30
         self.pub_pulse = rospy.Publisher('eulerian_color_changes_pulse', Float32, queue_size=10)
         self.fps = 30
@@ -100,7 +87,7 @@ class PulseMeasurement:
         self.buffer_size = 0
         self.time_array = []
         self.calculating_at = 0
-        self.calculating_boarder = 100
+        self.calculating_boarder = 50
         self.recording_time = 10
         self.first_time = True
 
@@ -127,36 +114,26 @@ class PulseMeasurement:
         cropped = cv2.resize(normalized, (200, 200))
         gaussian_frame = build_gaussian_frame(cropped, self.levels)
         green_values_images = extract_green_values(gaussian_frame)
-        if self.first_time:
-            self.video_array.append(green_values_images)
-        else:
-            green_values_images = np.expand_dims(green_values_images, axis=0)
-            self.video_array = np.append(self.video_array, green_values_images, axis=0)
+        self.video_array.append(green_values_images)
         # check if recording images took longer than certain amount of time
         time_difference = self.time_array[-1] - self.time_array[0]
         time_difference_in_seconds = time_difference.to_sec()
         if time_difference_in_seconds >= self.recording_time:
             self.buffer_size = (len(self.time_array))
-            if self.first_time:
-                print("first time")
-                self.calculate_fps()
-                what_to_filter = np.asarray(self.video_array, dtype=np.float32)
-                self.video_array = do_filtering_on_all(what_to_filter, self.low, self.high, self.fps)
-                self.video_array = amplify_video(self.video_array, self.amplification)
-                self.first_time = False
             # determine how many pictures got buffered during time interval
             # release first image and timestamp
-            self.video_array = np.delete(self.video_array, 0, 0)
+            self.video_array.pop(0)
             self.time_array.pop(0)
             self.calculating_at = self.calculating_at + 1
             # calculate again after certain amount of images
             if self.calculating_at >= self.calculating_boarder:
                 print("length final " + str(len(self.video_array)))
                 self.calculate_fps()
-                self.video_array = np.asarray(self.video_array, dtype=np.float32)
-                self.video_array = temporal_ideal_filter_amplify(self.video_array, self.low, self.high, self.fps, self.amplification)
-                #amplified = amplify_video(self.video_array, amplify=self.amplification)
-                pulse, green_values = calculate_pulse(self.video_array, self.recording_time)
+                copy_video_array = np.copy(self.video_array)
+                copy_video_array = np.asarray(copy_video_array, dtype=np.float32)
+                copy_video_array = do_filtering_on_all(copy_video_array, self.low, self.high, self.fps)
+                copy_video_array = amplify_video(copy_video_array, amplify=self.amplification)
+                pulse, green_values = calculate_pulse(copy_video_array, self.recording_time)
                 self.publish_pulse(pulse, green_values)
                 self.calculating_at = 0
 

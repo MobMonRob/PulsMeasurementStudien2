@@ -33,21 +33,29 @@ def build_gaussian_frame(normalized, level):
 
 def do_filtering_on_all(what_to_filter, low, high, fps):
     fft = fftpack.fft(what_to_filter, axis=0)
+    plt.plot(fft)
+    plt.show()
     frequencies = fftpack.fftfreq(what_to_filter.shape[0], d=1.0 / fps)
     bound_low = (np.abs(frequencies - low)).argmin()
     bound_high = (np.abs(frequencies - high)).argmin()
     fft[:bound_low] = 0
+    plt.plot(fft)
+    plt.show()
     fft[bound_high:-bound_high] = 0
+    plt.plot(fft)
+    plt.show()
     fft[-bound_low:] = 0
+    plt.plot(fft)
+    plt.show()
     iff = fftpack.ifft(fft, axis=0)
     return iff
 
 
 def amplify_video(filtered_tensor, amplify):
-    npa = np.asarray(filtered_tensor, dtype=np.float32)
-    npa = np.multiply(npa, amplify)
-    npa = npa + filtered_tensor
-    return npa
+    amplification_array = np.asarray(filtered_tensor, dtype=np.float32)
+    amplification_array = np.multiply(amplification_array, amplify)
+    amplification_array = amplification_array + filtered_tensor
+    return amplification_array
 
 
 def calculate_pulse(upsampled_final_amplified, recorded_time):
@@ -60,8 +68,8 @@ def calculate_pulse(upsampled_final_amplified, recorded_time):
     pulse = (len(peaks) / float(recorded_time)) * 60
     pulse = np.int16(pulse)
     print(len(green_values))
-    plt.plot(green_values)
     npa = np.asarray(green_values, dtype=np.float32)
+    plt.plot(green_values)
     plt.plot(peaks, npa[peaks], "x")
     plt.show()
     print("pulse :" + str(pulse))

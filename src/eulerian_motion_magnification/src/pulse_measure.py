@@ -33,52 +33,53 @@ def build_gaussian_frame(normalized, level):
 
 def do_filtering_on_all(what_to_filter, low, high, fps):
     fft = fftpack.fft(what_to_filter, axis=0)
-    plt.plot(fft)
-    plt.show()
     frequencies = fftpack.fftfreq(what_to_filter.shape[0], d=1.0 / fps)
+    print("frequencies: " + str(frequencies))
     bound_low = (np.abs(frequencies - low)).argmin()
     bound_high = (np.abs(frequencies - high)).argmin()
     fft[:bound_low] = 0
-    plt.plot(fft)
-    plt.show()
     fft[bound_high:-bound_high] = 0
-    plt.plot(fft)
-    plt.show()
     fft[-bound_low:] = 0
-    plt.plot(fft)
-    plt.show()
     iff = fftpack.ifft(fft, axis=0)
     return iff
 
 
 def amplify_video(filtered_tensor, amplify):
     amplification_array = np.asarray(filtered_tensor, dtype=np.float32)
+    value2 = []
+    for i in range(0, amplification_array.shape[0]):
+        img = amplification_array[i]
+        red_intensity = np.mean(img)
+        value2.append(red_intensity)
+    plt.plot(value2)
     amplification_array = np.multiply(amplification_array, amplify)
+    value1 = []
+    for i in range(0, amplification_array.shape[0]):
+        img = amplification_array[i]
+        red_intensity = np.mean(img)
+        value1.append(red_intensity)
+    plt.plot(value1)
+    plt.show()
     amplification_array = amplification_array + filtered_tensor
     return amplification_array
 
 
 def calculate_pulse(upsampled_final_amplified, recorded_time):
-    green_values = []
+    red_values = []
     for i in range(0, upsampled_final_amplified.shape[0]):
         img = upsampled_final_amplified[i]
-        green_intensity = np.mean(img)
-        green_values.append(green_intensity)
-    peaks, _ = find_peaks(green_values)
+        red_intensity = np.mean(img)
+        red_values.append(red_intensity)
+    peaks, _ = find_peaks(red_values)
     pulse = (len(peaks) / float(recorded_time)) * 60
     pulse = np.int16(pulse)
-    print(len(green_values))
-    npa = np.asarray(green_values, dtype=np.float32)
-    plt.plot(green_values)
-    plt.plot(peaks, npa[peaks], "x")
-    plt.show()
     print("pulse :" + str(pulse))
-    return pulse, green_values
+    return pulse, red_values
 
 
 def extract_green_values(gaussian_frame):
-    green_values = gaussian_frame[:, :, 2]
-    return green_values
+    red_values = gaussian_frame[:, :, 2]
+    return red_values
 
 
 class PulseMeasurement:
@@ -108,7 +109,7 @@ class PulseMeasurement:
         print("fps:" + str(self.fps))
         print(len(self.video_array))
 
-    def publish_pulse(self, pulse, green_values):
+    def publish_pulse(self, pulse, red_values):
         msg_to_publish_pulse = pulse
 
         self.pub_pulse.publish(msg_to_publish_pulse)
@@ -141,8 +142,8 @@ class PulseMeasurement:
                 copy_video_array = np.asarray(copy_video_array, dtype=np.float32)
                 copy_video_array = do_filtering_on_all(copy_video_array, self.low, self.high, self.fps)
                 copy_video_array = amplify_video(copy_video_array, amplify=self.amplification)
-                pulse, green_values = calculate_pulse(copy_video_array, self.recording_time)
-                self.publish_pulse(pulse, green_values)
+                pulse, red_values = calculate_pulse(copy_video_array, self.recording_time)
+                self.publish_pulse(pulse, red_values)
                 self.calculating_at = 0
 
 

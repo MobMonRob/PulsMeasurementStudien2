@@ -24,7 +24,7 @@ import logging
 import pexpect
 import argparse
 import rospy
-from pulse_chest_strap.msg import pulse
+from face_detection.msg import Pulse
 logging.basicConfig(format="%(asctime)-15s  %(message)s")
 log = logging.getLogger("BLEHeartRateLogger")
 
@@ -84,12 +84,12 @@ def main(addr=None, gatttool="gatttool"):
     main routine to which orchestrates everything
     """
     # set up ROS publisher and node
-    pub = rospy.Publisher('pulsgurt', pulse, queue_size=10)
+    pub = rospy.Publisher('pulsgurt', Pulse, queue_size=10)
     rospy.init_node('pulsgurt_node', anonymous=False, disable_signals=True)
     # number of measured pulse values. Increments for every measured value
     seq = 0
     # message to be published is from type pulse. Can be found in Pulse.msg
-    msg_to_publish = pulse()
+    msg_to_publish = Pulse()
 
     if addr is None:
         # A mac address has to be provided as command line argument

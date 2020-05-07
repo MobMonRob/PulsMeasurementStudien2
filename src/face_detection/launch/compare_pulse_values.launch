@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="topic" default="/pulsgurt" />
+    <arg name="topicToCompare" default="/head_movement_pulse" />
+    <node pkg="face_detection" type="compare_pulse_values.py" name="compare" output="screen">
+        <param name="topic" type="string" value="$(arg topic)" />
+        <param name="topicToCompare" type="string" value="$(arg topicToCompare)" />
+    </node>
+    <group if="$(eval arg('topic') == '/pulsgurt')">
+        <node name="pulsgurt_node" pkg="pulse_chest_strap" type="pulse_polarH7.py" args="-m 00:22:D0:84:1E:64" output="screen"/>
+    </group>
+    <group if="$(eval arg('topicToCompare') == '/head_movement_pulse')">
+        <include file="$(find pulse_head_movement)/launch/webcam.launch">
+            <arg name="show_plot" value="false" />
+        </include>
+    </group>
+</launch>

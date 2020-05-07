@@ -395,7 +395,7 @@ class PulseHeadMovement:
         peaks, _ = find_peaks(signal, distance=distance)
         measured_time = time_array[-1] - time_array[0]
         pulse = (len(peaks) / measured_time) * 60
-        pulse = np.int16(pulse)
+        # pulse = np.int16(pulse)
         rospy.loginfo("[PulseHeadMovement] Pulse: " + str(pulse))
         # uncomment the following lines to see the final singal with the detected peaks. For debugging.
         # stepsize = 1. / sample_rate

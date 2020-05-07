@@ -14,6 +14,6 @@
         <param name="bdf_file" type="string" value="$(arg bdf_file)" />
     </node>
      <group if="$(arg show_plot)">
-        <node name="pulse_plot" pkg="plotjuggler" type="PlotJuggler" args="--layout $(find pulse_head_movement)/launch/pulse_head_movement_config.xml"/>
+        <node name="pulse_plot" pkg="plotjuggler" type="PlotJuggler" args="--layout $(find pulse_head_movement)/config/pulse_head_movement_config.xml"/>
     </group>
 </launch>

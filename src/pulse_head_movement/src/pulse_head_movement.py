@@ -174,7 +174,6 @@ class PulseHeadMovement:
         return feature_points
 
     def edit_buffer(self, current_points_to_track, publish_time):
-        # TODO statt publish_time from_sec() nehmen
         """
         If new points are added, the buffer has to be edited.
         If the buffer is full, points in the last position are removed from the array and are further processed

@@ -12,7 +12,6 @@ from scipy import stats
 from scipy import fftpack
 from scipy.interpolate import CubicSpline
 from scipy.signal import butter, lfilter, filtfilt, find_peaks, welch
-from cv_bridge import CvBridge, CvBridgeError
 from sklearn.decomposition import PCA
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -45,8 +44,6 @@ class PulseHeadMovement:
         """
         Constructor.
         """
-        # bridge to convert ROS image to OpenCV image
-        self.bridge = CvBridge()
         # set up ROS publisher
         self.pub = rospy.Publisher('head_movement_pulse', Pulse, queue_size=10)
         # sequence of published pulse values, published with each pulse message
@@ -93,17 +90,6 @@ class PulseHeadMovement:
             self.add_new_points_to_buffer(original_image, forehead_mask, bottom_mask, time)
         self.frame_index += 1
         self.previous_image = original_image
-
-    def convert_ros_images_to_opencv(self, mask):
-        """
-        Convert the incoming ros images to OpenCV images for further processing
-        :param mask: the message published to the topic (contains gray-image, mask from bottom part of the face
-                                                         and mask for forehead)
-        """
-        original_image = self.bridge.imgmsg_to_cv2(mask.image)
-        bottom_mask = self.bridge.imgmsg_to_cv2(mask.bottom_face_mask)
-        forehead_mask = self.bridge.imgmsg_to_cv2(mask.forehead_mask)
-        return original_image, bottom_mask, forehead_mask
 
     def get_current_tracking_points_position(self, current_image, time):
         """

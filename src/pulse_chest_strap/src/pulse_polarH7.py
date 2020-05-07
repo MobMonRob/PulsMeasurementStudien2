@@ -88,7 +88,7 @@ def main(addr=None, gatttool="gatttool"):
     rospy.init_node('pulsgurt_node', anonymous=False, disable_signals=True)
     # number of measured pulse values. Increments for every measured value
     seq = 0
-    # message to be published is from type pulse. Can be found in pulse.msg
+    # message to be published is from type pulse. Can be found in Pulse.msg
     msg_to_publish = pulse()
 
     if addr is None:

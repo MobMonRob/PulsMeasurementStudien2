@@ -7,7 +7,6 @@ import sys
 import numpy as np
 import cv2
 import rospy
-from pulse_chest_strap.msg import pulse
 from scipy import interpolate
 from scipy import stats
 from scipy import fftpack
@@ -18,6 +17,7 @@ from sklearn.decomposition import PCA
 import pandas as pd
 import matplotlib.pyplot as plt
 from face_detection import FaceDetector
+from face_detection.msg import Pulse
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
@@ -48,7 +48,7 @@ class PulseHeadMovement:
         # bridge to convert ROS image to OpenCV image
         self.bridge = CvBridge()
         # set up ROS publisher
-        self.pub = rospy.Publisher('head_movement_pulse', pulse, queue_size=10)
+        self.pub = rospy.Publisher('head_movement_pulse', Pulse, queue_size=10)
         # sequence of published pulse values, published with each pulse message
         self.published_pulse_value_sequence = 0
         # previous image is needed for lucas kanade optical flow tracker (see calculate_optical_flow method)
@@ -185,7 +185,7 @@ class PulseHeadMovement:
         """
         if len(self.buffer_points) < self.refresh_rate/self.publish_rate:
             # as the buffer is not full, there are no points yet to process.
-            rospy.loginfo("array not full yet ")
+            rospy.loginfo("[PulseHeadMovement] array not full yet ")
         else:
             # process points on the last array position
             self.buffer_points.pop()
@@ -226,10 +226,10 @@ class PulseHeadMovement:
         Helper method to calculate fps for performance measuring.
         """
         timespan = time_array[-1]-time_array[0]
-        rospy.loginfo("Measured timespan: "+str(timespan))
+        rospy.loginfo("[PulseHeadMovement] Measured timespan: "+str(timespan))
         fps = self.refresh_rate/timespan
         self.fps = fps
-        rospy.loginfo("FPS: " + str(fps))
+        rospy.loginfo("[PulseHeadMovement] FPS: " + str(fps))
 
     def remove_erratic_trajectories(self, y_tracking_signal):
         """
@@ -294,7 +294,7 @@ class PulseHeadMovement:
         :param time_array:
         """
         sample_rate = len(input_signal[0])/(time_array[-1]-time_array[0])
-        rospy.loginfo("sample rate: "+str(sample_rate))
+        rospy.loginfo("[PulseHeadMovement] sample rate: "+str(sample_rate))
         lowcut = 0.75
         highcut = 5
         filtered_signal = np.empty([np.size(input_signal, 0), np.size(input_signal, 1)])
@@ -411,7 +411,7 @@ class PulseHeadMovement:
         measured_time = time_array[-1] - time_array[0]
         pulse = (len(peaks) / measured_time) * 60
         pulse = np.int16(pulse)
-        rospy.loginfo("Pulse: " + str(pulse))
+        rospy.loginfo("[PulseHeadMovement] Pulse: " + str(pulse))
         # uncomment the following lines to see the final singal with the detected peaks. For debugging.
         # stepsize = 1. / sample_rate
         # xs = np.arange(time_array[0], time_array[-1], stepsize)
@@ -428,7 +428,7 @@ class PulseHeadMovement:
         :param pulse_value: the calculated pulse value
         :param publish_time: the timestamp of the last incoming frame
         """
-        msg_to_publish = pulse()
+        msg_to_publish = Pulse()
         msg_to_publish.pulse = pulse_value
         msg_to_publish.time.stamp = publish_time
         msg_to_publish.time.seq = self.published_pulse_value_sequence
@@ -455,19 +455,19 @@ def main():
 
     # Get ROS topic from launch parameter
     topic = rospy.get_param("~topic", "/webcam/image_raw")
-    rospy.loginfo("Listening on topic '" + topic + "'")
+    rospy.loginfo("[PulseHeadMovement] Listening on topic '" + topic + "'")
 
     video_file = rospy.get_param("~video_file", None)
-    rospy.loginfo("Video file input: '" + str(video_file) + "'")
+    rospy.loginfo("[PulseHeadMovement] Video file input: '" + str(video_file) + "'")
 
     bdf_file = rospy.get_param("~bdf_file", "")
-    rospy.loginfo("Bdf file: '" + str(bdf_file) + "'")
+    rospy.loginfo("[PulseHeadMovement] Bdf file: '" + str(bdf_file) + "'")
 
     cascade_file = rospy.get_param("~cascade_file", "")
-    rospy.loginfo("Cascade file: '" + str(cascade_file) + "'")
+    rospy.loginfo("[PulseHeadMovement] Cascade file: '" + str(cascade_file) + "'")
 
     show_image_frame = rospy.get_param("~show_image_frame", False)
-    rospy.loginfo("Show image frame: '" + str(show_image_frame) + "'")
+    rospy.loginfo("[PulseHeadMovement] Show image frame: '" + str(show_image_frame) + "'")
 
     # Start heart rate measurement
     pulse = PulseHeadMovement()
@@ -477,7 +477,7 @@ def main():
     face_detector.run(video_file, bdf_file, show_image_frame)
 
     rospy.spin()
-    rospy.loginfo("Shutting down")
+    rospy.loginfo("[PulseHeadMovement] Shutting down")
 
     # Destroy windows on close
     cv2.destroyAllWindows()

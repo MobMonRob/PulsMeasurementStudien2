@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from scipy import signal
-from face_detection import FaceDetector
-from face_detection import PulsePublisher
+from face_detector import FaceDetector
+from pulse_publisher import PulsePublisher
 
 import sys
 import numpy as np
@@ -141,7 +141,7 @@ class LegacyMeasurement(object):
 
 
 def main():
-    rospy.init_node('legacy_measurement', anonymous=False, log_level=rospy.DEBUG)
+    rospy.init_node("legacy_measurement", anonymous=False, log_level=rospy.DEBUG)
 
     # Get ROS topic from launch parameter
     topic = rospy.get_param("~topic", "/webcam/image_raw")

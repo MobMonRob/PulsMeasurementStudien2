@@ -2,7 +2,7 @@
 <launch>
     <arg name="topic" default="/pulsgurt" />
     <arg name="topicToCompare" default="/head_movement_pulse" />
-    <node pkg="face_detection" type="compare_pulse_values.py" name="compare" output="screen">
+    <node pkg="common" type="compare_pulse_values.py" name="compare" output="screen">
         <param name="topic" type="string" value="$(arg topic)" />
         <param name="topicToCompare" type="string" value="$(arg topicToCompare)" />
     </node>

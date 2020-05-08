@@ -24,7 +24,8 @@ import logging
 import pexpect
 import argparse
 import rospy
-from face_detection.msg import Pulse
+
+from common.msg import Pulse
 logging.basicConfig(format="%(asctime)-15s  %(message)s")
 log = logging.getLogger("BLEHeartRateLogger")
 
@@ -84,8 +85,8 @@ def main(addr=None, gatttool="gatttool"):
     main routine to which orchestrates everything
     """
     # set up ROS publisher and node
-    pub = rospy.Publisher('pulsgurt', Pulse, queue_size=10)
-    rospy.init_node('pulsgurt_node', anonymous=False, disable_signals=True)
+    pub = rospy.Publisher("pulsgurt", Pulse, queue_size=10)
+    rospy.init_node("pulsgurt_node", anonymous=False, disable_signals=True)
     # number of measured pulse values. Increments for every measured value
     seq = 0
     # message to be published is from type pulse. Can be found in Pulse.msg
@@ -102,7 +103,7 @@ def main(addr=None, gatttool="gatttool"):
     while retry:
 
         while 1:
-            print("Establishing connection to " + addr)
+            rospy.loginfo("[PulsePolarH7] Establishing connection to " + addr)
             gt = pexpect.spawn(gatttool + " -b " + addr + " -I")
 
             gt.expect(r"\[LE\]>")
@@ -113,11 +114,11 @@ def main(addr=None, gatttool="gatttool"):
                     gt.expect(r"\[LE\]>", timeout=30)
 
             except pexpect.TIMEOUT:
-                print("Connection timeout. Retrying.")
+                rospy.loginfo("[PulsePolarH7] Connection timeout. Retrying.")
                 continue
 
             except KeyboardInterrupt:
-                print("Received keyboard interrupt. Quitting cleanly.")
+                rospy.loginfo("[PulsePolarH7] Received keyboard interrupt. Quitting cleanly.")
                 retry = False
                 break
             break
@@ -125,7 +126,7 @@ def main(addr=None, gatttool="gatttool"):
         if not retry:
             break
 
-        print("Connected to " + addr)
+        rospy.loginfo("[PulsePolarH7] Connected to " + addr)
 
         # We determine which handle we should read for getting the heart rate
         # measurement characteristic.
@@ -176,7 +177,7 @@ def main(addr=None, gatttool="gatttool"):
                 break
 
             except KeyboardInterrupt:
-                print("Received keyboard interrupt. Quitting cleanly.")
+                rospy.loginfo("[PulsePolarH7] Received keyboard interrupt. Quitting cleanly.")
                 retry = False
                 break
 
@@ -195,7 +196,7 @@ def main(addr=None, gatttool="gatttool"):
 
             log.debug(res)
 
-            print("Heart rate: " + str(res["hr"]))
+            rospy.loginfo("[PulsePolarH7] Heart rate: " + str(res["hr"]))
             msg_to_publish.pulse = res["hr"]
             msg_to_publish.time.stamp = rospy.Time.now()
             msg_to_publish.time.seq = seq

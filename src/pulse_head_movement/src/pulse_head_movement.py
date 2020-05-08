@@ -15,8 +15,8 @@ from scipy.signal import butter, lfilter, filtfilt, find_peaks, welch
 from sklearn.decomposition import PCA
 import pandas as pd
 import matplotlib.pyplot as plt
-from face_detection import FaceDetector
-from face_detection.msg import Pulse
+from face_detector import FaceDetector
+from common.msg import Pulse
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
@@ -436,7 +436,7 @@ def main():
     Main.
     Get topic to listen to from launch file and starts main loop in with pulse.run().
     """
-    rospy.init_node('head_movement_listener', anonymous=False, log_level=rospy.DEBUG)
+    rospy.init_node("head_movement_listener", anonymous=False, log_level=rospy.DEBUG)
 
     # Get ROS topic from launch parameter
     topic = rospy.get_param("~topic", "/webcam/image_raw")

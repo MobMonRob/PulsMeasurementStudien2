@@ -10,7 +10,7 @@ project(legacy_measurement)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
-  face_detection
+  common
 )
 
 ## System dependencies are found with CMake's conventions

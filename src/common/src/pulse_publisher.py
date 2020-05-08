@@ -1,4 +1,4 @@
-from face_detection.msg import Pulse
+from common.msg import Pulse
 
 import csv
 import rospy
@@ -12,6 +12,7 @@ class PulsePublisher:
         self.sequence = 0
 
     def publish(self, pulse, timestamp):
+        rospy.loginfo("[PulsePublisher] Publishing pulse: " + str(pulse))
         self.publish_to_ros(pulse, timestamp)
         self.write_to_csv(pulse, timestamp)
 

@@ -2,22 +2,22 @@
 # -*- encoding: utf-8 -*-
 
 __version__ = "0.1.1"
-from face_detection.msg import Pulse
+from common.msg import Pulse
 import sys
 import rospy
 
 class ComparePulseValues:
 
-    def __init__(self, topic, topicToCompare):
+    def __init__(self, topic, topic_to_compare):
         self.topic = topic
-        self.topicToCompare = topicToCompare
+        self.topic_to_compare = topic_to_compare
         self.pulse = None
         self.pulseToCompare = None
         self.error = None
 
     def run(self):
         rospy.Subscriber(self.topic, Pulse, self.pulse_callback)
-        rospy.Subscriber(self.topicToCompare, Pulse, self.pulse_to_compare_callback)
+        rospy.Subscriber(self.topic_to_compare, Pulse, self.pulse_to_compare_callback)
         try:
             rospy.spin()
         except KeyboardInterrupt:
@@ -40,12 +40,15 @@ class ComparePulseValues:
 
 
 def main():
-    rospy.init_node('compare', anonymus=False, log_level=rospy.DEBUG)
+    rospy.init_node("compare", anonymous=False, log_level=rospy.DEBUG)
+
     topic = rospy.get_param("~topic", "/pulsgurt")
-    rospy.loginfo("Listening on topic '" + topic + "'")
-    topicToCompare = rospy.get_param("~topicToCompare", "/head_movement_pulse")
-    rospy.loginfo("Listening on topic '" + topicToCompare + "'")
-    pulse = ComparePulseValues(topic, topicToCompare)
+    rospy.loginfo("[ComparePulseValues] Listening on topic '" + topic + "'")
+
+    topic_to_compare = rospy.get_param("~topicToCompare", "/head_movement_pulse")
+    rospy.loginfo("[ComparePulseValues] Listening on topic '" + topic_to_compare + "'")
+
+    pulse = ComparePulseValues(topic, topic_to_compare)
     pulse.run()
 
 

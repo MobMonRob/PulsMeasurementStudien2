@@ -31,12 +31,13 @@ class ComparePulseValues:
 
     def calculate_error(self, topic, pulse):
         if topic is True:
-            self.pulse = pulse
+            self.pulse = pulse.pulse
         else:
-            self.pulseToCompare = pulse
-
-        absolute_error = abs(self.pulseToCompare-self.pulse)
-        self.error = absolute_error/self.pulse
+            self.pulseToCompare = pulse.pulse
+        if self.pulseToCompare is not None and self.pulse is not None:
+            absolute_error = abs(self.pulseToCompare-self.pulse)
+            self.error = absolute_error/self.pulse
+            print("Error:" + str(self.error))
 
 
 def main():

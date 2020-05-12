@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <root version="2.3.8">
  <tabbed_widget name="Main Window" parent="main_window">
-  <plotmatrix rows="1" tab_name="plot" columns="1">
-   <plot row="0" col="0">
-    <range right="1585480345.853859" left="1585480234.527697" top="127.075000" bottom="39.925000"/>
+  <plotmatrix rows="1" columns="1" tab_name="plot">
+   <plot col="0" row="0">
+    <range right="1589294264.798085" bottom="29.165284" top="86.829631" left="1589294190.753999"/>
     <limitY/>
-    <curve custom_transform="XYPlot" B="180" name="/head_movement_pulse/[pulse;time/stamp]" R="31" curve_y="/head_movement_pulse/pulse" G="119" curve_x="/head_movement_pulse/time/stamp"/>
+    <curve R="214" curve_y="/pulse_head_movement/pulse/pulse" G="39" B="40" name="/pulse_head_movement/pulse/[pulse;time/stamp]" custom_transform="XYPlot" curve_x="/pulse_head_movement/pulse/time/stamp"/>
     <transform value="XYPlot"/>
    </plot>
   </plotmatrix>

@@ -1,18 +1,18 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <root version="2.3.8">
  <tabbed_widget parent="main_window" name="Main Window">
-  <plotmatrix rows="2" tab_name="plot" columns="1">
-   <plot row="0" col="0">
-    <range bottom="39.682453" top="77.910184" left="1589292755.820924" right="1589292865.265502"/>
+  <plotmatrix tab_name="plot" columns="1" rows="2">
+   <plot col="0" row="0">
+    <range left="1589294743.077765" top="79.331223" bottom="38.576086" right="1589294859.758212"/>
     <limitY/>
-    <curve R="31" B="180" custom_transform="XYPlot" name="/head_movement_pulse/[pulse;time/stamp]" curve_x="/head_movement_pulse/time/stamp" G="119" curve_y="/head_movement_pulse/pulse"/>
-    <curve R="214" B="40" custom_transform="XYPlot" name="/pulsgurt/[pulse;time/stamp]" curve_x="/pulsgurt/time/stamp" G="39" curve_y="/pulsgurt/pulse"/>
+    <curve R="31" G="119" B="180" curve_y="/pulse_head_movement/pulse/pulse" curve_x="/pulse_head_movement/pulse/time/stamp" name="/pulse_head_movement/pulse/[pulse;time/stamp]" custom_transform="XYPlot"/>
+    <curve R="214" G="39" B="40" curve_y="/pulsgurt/pulse" curve_x="/pulsgurt/time/stamp" name="/pulsgurt/[pulse;time/stamp]" custom_transform="XYPlot"/>
     <transform value="XYPlot"/>
    </plot>
-   <plot row="1" col="0">
-    <range bottom="-1.066849" top="46.272205" left="1589292743.500234" right="1589292879.534023"/>
+   <plot col="0" row="1">
+    <range left="1589294747.840660" top="39.638499" bottom="2.083730" right="1589294855.758269"/>
     <limitY/>
-    <curve R="26" B="56" custom_transform="XYPlot" name="/compare_pulse_values/[error;time/stamp]" curve_x="/compare_pulse_values/time/stamp" G="201" curve_y="/compare_pulse_values/error"/>
+    <curve R="26" G="201" B="56" curve_y="/compare_pulse_values/error" curve_x="/compare_pulse_values/time/stamp" name="/compare_pulse_values/[error;time/stamp]" custom_transform="XYPlot"/>
     <transform value="XYPlot"/>
    </plot>
   </plotmatrix>
@@ -38,8 +38,8 @@
    <discard_large_arrays value="true"/>
    <max_array_size value="100"/>
   </plugin>
-  <plugin ID="ROS /rosout Visualization" status="idle"/>
-  <plugin ID="ROS Topic Re-Publisher" status="idle"/>
+  <plugin status="idle" ID="ROS /rosout Visualization"/>
+  <plugin status="idle" ID="ROS Topic Re-Publisher"/>
  </Plugins>
  <!-- - - - - - - - - - - - - - - -->
  <previouslyLoaded_Datafiles/>
@@ -47,7 +47,7 @@
  <!-- - - - - - - - - - - - - - - -->
  <customMathEquations/>
  <snippets>
-  <snippet name="1st_derivative" language="JS">
+  <snippet language="JS" name="1st_derivative">
    <global>var prevX = 0
 var prevY = 0</global>
    <equation>dx = time - prevX
@@ -57,14 +57,14 @@ prevY = value
 
 return dy/dx</equation>
   </snippet>
-  <snippet name="1st_order_lowpass" language="JS">
+  <snippet language="JS" name="1st_order_lowpass">
    <global>var prevY = 0
 var alpha = 0.1</global>
    <equation>prevY = alpha * value + (1.-alpha) * prevY
 
 return prevY</equation>
   </snippet>
-  <snippet name="2D_velocity" language="JS">
+  <snippet language="JS" name="2D_velocity">
    <global>var prev_x = 0
 var prev_y = 0
 var prev_t = 0</global>
@@ -80,23 +80,23 @@ prev_t = time
 
 return dist / dT</equation>
   </snippet>
-  <snippet name="average_two_curves" language="JS">
+  <snippet language="JS" name="average_two_curves">
    <global></global>
    <equation>a = $$PLOT_A$$
 b = $$PLOT_B$$
 
 return (a+b)/2</equation>
   </snippet>
-  <snippet name="integral" language="JS">
+  <snippet language="JS" name="integral">
    <global>var integral = 0</global>
    <equation>integral += value
 return integral</equation>
   </snippet>
-  <snippet name="rad_to_deg" language="JS">
+  <snippet language="JS" name="rad_to_deg">
    <global></global>
    <equation>return value*180/3.1417</equation>
   </snippet>
-  <snippet name="remove_offset" language="JS">
+  <snippet language="JS" name="remove_offset">
    <global>var is_first = true
 var first_value = 0</global>
    <equation>if (is_first)
@@ -107,7 +107,7 @@ var first_value = 0</global>
 
 return value - first_value</equation>
   </snippet>
-  <snippet name="yaw_from_quaternion" language="JS">
+  <snippet language="JS" name="yaw_from_quaternion">
    <global>// source: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 
 function quaternionToYaw(x, y, z, w)

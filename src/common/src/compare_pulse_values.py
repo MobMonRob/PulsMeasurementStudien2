@@ -11,7 +11,7 @@ class ComparePulseValues:
 
     def __init__(self, topic, topic_to_compare):
         # set up ROS publisher
-        self.pub = rospy.Publisher('compare_pulse_values', Error, queue_size=10)
+        self.pub = rospy.Publisher('/compare_pulse_values', Error, queue_size=10)
         # sequence of published error values, published with each error message
         self.published_error_value_sequence = 0
         self.topic = topic

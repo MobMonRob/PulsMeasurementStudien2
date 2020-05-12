@@ -16,6 +16,7 @@ from sklearn.decomposition import PCA
 import pandas as pd
 import matplotlib.pyplot as plt
 from face_detector import FaceDetector
+from pulse_publisher import PulsePublisher
 from common.msg import Pulse
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
@@ -44,8 +45,8 @@ class PulseHeadMovement:
         """
         Constructor.
         """
-        # set up ROS publisher
-        self.pub = rospy.Publisher('head_movement_pulse', Pulse, queue_size=10)
+        # set up publisher
+        self.publisher = PulsePublisher("pulse_head_movement")
         # sequence of published pulse values, published with each pulse message
         self.published_pulse_value_sequence = 0
         # previous image is needed for lucas kanade optical flow tracker (see calculate_optical_flow method)
@@ -413,11 +414,7 @@ class PulseHeadMovement:
         :param pulse_value: the calculated pulse value
         :param publish_time: the timestamp of the last incoming frame
         """
-        msg_to_publish = Pulse()
-        msg_to_publish.pulse = pulse_value
-        msg_to_publish.time.stamp = publish_time
-        msg_to_publish.time.seq = self.published_pulse_value_sequence
-        self.pub.publish(msg_to_publish)
+        self.publisher.publish(pulse_value, publish_time)
         self.published_pulse_value_sequence += 1
 
     def show_image_with_mask(self, image, forehead_mask, bottom_mask):

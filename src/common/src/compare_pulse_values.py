@@ -3,17 +3,23 @@
 
 __version__ = "0.1.1"
 from common.msg import Pulse
+from common.msg import Error
 import sys
 import rospy
 
 class ComparePulseValues:
 
     def __init__(self, topic, topic_to_compare):
+        # set up ROS publisher
+        self.pub = rospy.Publisher('compare_pulse_values', Error, queue_size=10)
+        # sequence of published error values, published with each error message
+        self.published_error_value_sequence = 0
         self.topic = topic
         self.topic_to_compare = topic_to_compare
         self.pulse = None
         self.pulseToCompare = None
         self.error = None
+        self.timestamp = None
 
     def run(self):
         rospy.Subscriber(self.topic, Pulse, self.pulse_callback)
@@ -34,11 +40,21 @@ class ComparePulseValues:
             self.pulse = pulse.pulse
         else:
             self.pulseToCompare = pulse.pulse
-        if self.pulseToCompare is not None and self.pulse is not None:
-            absolute_error = abs(self.pulseToCompare-self.pulse)
-            self.error = absolute_error/self.pulse
-            print("Error:" + str(self.error))
 
+        if self.pulseToCompare is not None and self.pulse is not None:
+            self.timestamp = pulse.time
+            absolute_error = abs(self.pulseToCompare-self.pulse)
+            self.error = (absolute_error/self.pulse)*100
+            self.publish_error()
+
+    def publish_error(self):
+        rospy.loginfo("[ComparePulseValues] Error: "+str(self.error))
+        msg_to_publish = Error()
+        msg_to_publish.error = self.error
+        msg_to_publish.time.stamp = rospy.Time.now()
+        msg_to_publish.time.seq = self.published_error_value_sequence
+        self.pub.publish(msg_to_publish)
+        self.published_error_value_sequence += 1
 
 def main():
     rospy.init_node("compare", anonymous=False, log_level=rospy.DEBUG)

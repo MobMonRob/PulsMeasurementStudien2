@@ -8,6 +8,7 @@ import cv2
 import os
 import rospy
 import sys
+import thread
 
 from std_msgs.msg import Float32, Float32MultiArray
 import scipy.fftpack as fftpack
@@ -34,7 +35,6 @@ def build_gaussian_frame(normalized, level):
 def do_filtering_on_all(what_to_filter, low, high, fps):
     fft = fftpack.fft(what_to_filter, axis=0)
     frequencies = fftpack.fftfreq(what_to_filter.shape[0], d=1.0 / fps)
-    print("frequencies: " + str(frequencies))
     bound_low = (np.abs(frequencies - low)).argmin()
     bound_high = (np.abs(frequencies - high)).argmin()
     fft[:bound_low] = 0
@@ -47,14 +47,15 @@ def do_filtering_on_all(what_to_filter, low, high, fps):
 def amplify_video(filtered_tensor, amplify):
     amplification_array = np.asarray(filtered_tensor, dtype=np.float32)
     amplification_array = np.multiply(amplification_array, amplify)
-    amplification_array = amplification_array + filtered_tensor
     return amplification_array
 
 
-def calculate_pulse(upsampled_final_amplified, recorded_time):
+def calculate_pulse(amplified_filtered_frames, recorded_time):
+    amplified_filtered_frames = extract_red_values(amplified_filtered_frames)
+    amplified_filtered_frames = np.asarray(amplified_filtered_frames, dtype=np.float32)
     red_values = []
-    for i in range(0, upsampled_final_amplified.shape[0]):
-        img = upsampled_final_amplified[i]
+    for i in range(0, amplified_filtered_frames.shape[0]):
+        img = amplified_filtered_frames[i]
         red_intensity = np.mean(img)
         red_values.append(red_intensity)
     peaks, _ = find_peaks(red_values)
@@ -64,9 +65,35 @@ def calculate_pulse(upsampled_final_amplified, recorded_time):
     return pulse, red_values
 
 
-def extract_red_values(gaussian_frame):
-    red_values = gaussian_frame[:, :, 2]
+def extract_red_values(amplified_filtered_frames):
+    red_values = []
+    for i in range(0, amplified_filtered_frames.shape[0]):
+        red_value = amplified_filtered_frames[i, :, 2]
+        red_values.append(red_value)
     return red_values
+
+
+def upsample_images(copy_video_array, video_array, arraylength, levels):
+    copy_video_array = np.asarray(copy_video_array, dtype=np.float32)
+    upsampled_images = np.zeros((arraylength, 200, 200, 3))
+    for i in range(0, copy_video_array.shape[0]):
+        img = copy_video_array[i]
+        img = img + video_array[i]
+        for x in range(levels):
+            img = cv2.pyrUp(img)
+        upsampled_images[i] = img
+    return upsampled_images
+
+
+def show_images(copy_video_array, video_array, arraylength, isFirst, levels, calculating_boarder):
+    copy_video_array = upsample_images(copy_video_array, video_array, arraylength, levels)
+    if not isFirst:
+        copy_video_array = copy_video_array[-calculating_boarder:]
+    for image in copy_video_array:
+        time.sleep(0.0166)
+        cv2.imshow("colour changes pulse", image)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
 
 class PulseMeasurement:
@@ -85,6 +112,8 @@ class PulseMeasurement:
         self.calculating_at = 0
         self.calculating_boarder = 50
         self.recording_time = 10
+        self.isFirst = True
+        self.arrayLength = 0
 
     def calculate_fps(self):
         time_difference = self.time_array[-1] - self.time_array[0]
@@ -97,7 +126,6 @@ class PulseMeasurement:
 
     def publish_pulse(self, pulse, red_values):
         msg_to_publish_pulse = pulse
-
         self.pub_pulse.publish(msg_to_publish_pulse)
 
     # calculate pulse after certain amount of images taken, calculation based on a larger amount of time
@@ -108,8 +136,7 @@ class PulseMeasurement:
         normalized = cv2.normalize(roi.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
         cropped = cv2.resize(normalized, (200, 200))
         gaussian_frame = build_gaussian_frame(cropped, self.levels)
-        red_values_images = extract_red_values(gaussian_frame)
-        self.video_array.append(red_values_images)
+        self.video_array.append(gaussian_frame)
         # check if recording images took longer than certain amount of time
         time_difference = self.time_array[-1] - self.time_array[0]
         time_difference_in_seconds = time_difference.to_sec()
@@ -122,16 +149,18 @@ class PulseMeasurement:
             self.calculating_at = self.calculating_at + 1
             # calculate again after certain amount of images
             if self.calculating_at >= self.calculating_boarder:
-                print("length final " + str(len(self.video_array)))
+                self.arrayLength = len(self.video_array)
+                print("length final " + str(self.arrayLength))
                 self.calculate_fps()
                 copy_video_array = np.copy(self.video_array)
                 copy_video_array = np.asarray(copy_video_array, dtype=np.float32)
                 copy_video_array = do_filtering_on_all(copy_video_array, self.low, self.high, self.fps)
-                copy_video_array = amplify_video(copy_video_array, amplify=self.amplification)
+                final_array = amplify_video(copy_video_array, amplify=self.amplification)
                 pulse, red_values = calculate_pulse(copy_video_array, self.recording_time)
                 self.publish_pulse(pulse, red_values)
+                show_images(final_array, self.video_array, self.arrayLength, self.isFirst, self.levels, self.calculating_boarder)
                 self.calculating_at = 0
-
+                self.isFirst = False
 
 
 def main():

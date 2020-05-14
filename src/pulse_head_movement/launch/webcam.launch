@@ -1,9 +1,10 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="topic" default="/webcam/image_raw" />
-    <arg name="cascade_file" default="$(find face_detection)/include/cascade.xml" />
+    <arg name="cascade_file" default="$(find common)/config/cascade.xml" />
     <arg name="show_image_frame" default="false" />
     <arg name="fps" default="30" />
+    <arg name="show_plot" default="false"/>
     <include file="$(find video_stream_opencv)/launch/camera.launch" >
         <!-- node name and ros graph name -->
         <arg name="camera_name" value="webcam" />
@@ -32,4 +33,7 @@
         <arg name="show_image_frame" value="$(arg show_image_frame)" />
         <arg name="cascade_file" value="$(arg cascade_file)" />
     </include>
+    <group if="$(arg show_plot)">
+        <node name="pulse_plot" pkg="plotjuggler" type="PlotJuggler" args="--layout $(find pulse_head_movement)/config/pulse_head_movement_config.xml"/>
+    </group>
 </launch>

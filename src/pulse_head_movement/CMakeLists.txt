@@ -10,8 +10,7 @@ project(pulse_head_movement)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
-  pulse_chest_strap
-  face_detection
+  common
 )
 
 ## System dependencies are found with CMake's conventions

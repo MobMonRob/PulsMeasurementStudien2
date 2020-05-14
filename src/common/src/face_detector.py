@@ -97,7 +97,7 @@ class FaceDetector:
 
         # Show original image, if no faces are detected
         if len(faces) is 0:
-            rospy.loginfo("No faces detected!")
+            rospy.loginfo("[FaceDetector] No faces detected!")
 
             if self.show_image_frame is True:
                 cv2.imshow("Image", cv_image)
@@ -222,10 +222,10 @@ class FaceDetector:
         if self.frame_count % 60 is 0:
             end = time.time()
             seconds = end - self.start
-            rospy.loginfo("Time taken: " + str(seconds) + " seconds")
+            rospy.loginfo("[FaceDetector] Time taken: " + str(seconds) + " seconds")
 
             fps = 60 / seconds
-            rospy.loginfo("Estimated frames per second: " + str(fps))
+            rospy.loginfo("[FaceDetector] Estimated frames per second: " + str(fps))
 
             self.start = time.time()
 

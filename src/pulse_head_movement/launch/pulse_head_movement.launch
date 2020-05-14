@@ -2,9 +2,10 @@
 <launch>
     <arg name="topic" default="/webcam/image_raw" />
     <arg name="show_image_frame" default="false" />
-    <arg name="cascade_file" default="$(find face_detection)/include/cascade.xml" />
+    <arg name="cascade_file" default="$(find common)/config/cascade.xml" />
     <arg name="video_file" default="" />
     <arg name="bdf_file" default="" />
+    <arg name="show_plot" default="false"/>
     <node pkg="pulse_head_movement" type="pulse_head_movement.py" name="pulse_head_movement" output="screen">
         <param name="topic" type="string" value="$(arg topic)" />
         <param name="show_image_frame" type="bool" value="$(arg show_image_frame)" />
@@ -12,4 +13,7 @@
         <param name="video_file" type="string" value="$(arg video_file)" />
         <param name="bdf_file" type="string" value="$(arg bdf_file)" />
     </node>
+     <group if="$(arg show_plot)">
+        <node name="pulse_plot" pkg="plotjuggler" type="PlotJuggler" args="--layout $(find pulse_head_movement)/config/pulse_head_movement_config.xml"/>
+    </group>
 </launch>

@@ -381,7 +381,7 @@ class PulseHeadMovement:
         # plt.figure(figsize=(6.5, 4))
         # plt.plot(xs, best_signal, label="S")
         # plt.show()
-        print(best_frequency)
+        # print(best_frequency)
         return best_signal, best_frequency
 
     def calculate_pulse(self, signal, frequency, time_array):

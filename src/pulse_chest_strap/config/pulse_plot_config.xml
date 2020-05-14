@@ -1,12 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <root version="2.3.8">
- <tabbed_widget parent="main_window" name="Main Window">
+ <tabbed_widget name="Main Window" parent="main_window">
   <plotmatrix rows="1" columns="1" tab_name="plot">
    <plot row="0" col="0">
-    <range bottom="-17.467826" left="1584385750.960809" top="93.467826" right="1584385861.896460"/>
+    <range bottom="64.423739" left="1579950432.759640" right="1579950536.715010" top="91.576261"/>
     <limitY/>
-    <curve curve_y="/head_movement_pulse/pulse" B="180" custom_transform="XYPlot" G="119" R="31" name="/head_movement_pulse/[pulse;time/stamp]" curve_x="/head_movement_pulse/time/stamp"/>
-    <curve curve_y="/pulsgurt/pulse" B="40" custom_transform="XYPlot" G="39" R="214" name="/pulsgurt/[pulse;time/stamp]" curve_x="/pulsgurt/time/stamp"/>
+    <curve name="/pulse_chest_strap/[pulse;time/stamp]" G="201" R="26" curve_x="/pulse_chest_strap/time/stamp" custom_transform="XYPlot" B="56" curve_y="/pulse_chest_strap/pulse"/>
     <transform value="XYPlot"/>
    </plot>
   </plotmatrix>
@@ -32,8 +31,8 @@
    <discard_large_arrays value="true"/>
    <max_array_size value="100"/>
   </plugin>
-  <plugin status="idle" ID="ROS /rosout Visualization"/>
-  <plugin status="idle" ID="ROS Topic Re-Publisher"/>
+  <plugin ID="ROS /rosout Visualization" status="idle"/>
+  <plugin ID="ROS Topic Re-Publisher" status="idle"/>
  </Plugins>
  <!-- - - - - - - - - - - - - - - -->
  <previouslyLoaded_Datafiles/>
@@ -41,7 +40,7 @@
  <!-- - - - - - - - - - - - - - - -->
  <customMathEquations/>
  <snippets>
-  <snippet language="JS" name="1st_derivative">
+  <snippet name="1st_derivative">
    <global>var prevX = 0
 var prevY = 0</global>
    <equation>dx = time - prevX
@@ -51,14 +50,14 @@ prevY = value
 
 return dy/dx</equation>
   </snippet>
-  <snippet language="JS" name="1st_order_lowpass">
+  <snippet name="1st_order_lowpass">
    <global>var prevY = 0
 var alpha = 0.1</global>
    <equation>prevY = alpha * value + (1.-alpha) * prevY
 
 return prevY</equation>
   </snippet>
-  <snippet language="JS" name="2D_velocity">
+  <snippet name="2D_velocity">
    <global>var prev_x = 0
 var prev_y = 0
 var prev_t = 0</global>
@@ -74,23 +73,23 @@ prev_t = time
 
 return dist / dT</equation>
   </snippet>
-  <snippet language="JS" name="average_two_curves">
+  <snippet name="average_two_curves">
    <global></global>
    <equation>a = $$PLOT_A$$
 b = $$PLOT_B$$
 
 return (a+b)/2</equation>
   </snippet>
-  <snippet language="JS" name="integral">
+  <snippet name="integral">
    <global>var integral = 0</global>
    <equation>integral += value
 return integral</equation>
   </snippet>
-  <snippet language="JS" name="rad_to_deg">
+  <snippet name="rad_to_deg">
    <global></global>
    <equation>return value*180/3.1417</equation>
   </snippet>
-  <snippet language="JS" name="remove_offset">
+  <snippet name="remove_offset">
    <global>var is_first = true
 var first_value = 0</global>
    <equation>if (is_first)
@@ -101,7 +100,7 @@ var first_value = 0</global>
 
 return value - first_value</equation>
   </snippet>
-  <snippet language="JS" name="yaw_from_quaternion">
+  <snippet name="yaw_from_quaternion">
    <global>// source: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 
 function quaternionToYaw(x, y, z, w)

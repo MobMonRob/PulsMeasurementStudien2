@@ -8,11 +8,12 @@ class PulsePublisher:
 
     def __init__(self, name):
         self.name = name
-        self.publisher = rospy.Publisher("/" + name + "/pulse", Pulse, queue_size=10)
+        self.topic = "/" + name
+        self.publisher = rospy.Publisher(self.topic, Pulse, queue_size=10)
         self.sequence = 0
 
     def publish(self, pulse, timestamp):
-        rospy.loginfo("[PulsePublisher] Publishing pulse: " + str(pulse))
+        rospy.loginfo("[PulsePublisher] Publishing pulse ('" + self.topic + "'): " + str(pulse))
         self.publish_to_ros(pulse, timestamp)
         self.write_to_csv(pulse, timestamp)
 

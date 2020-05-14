@@ -38,6 +38,7 @@ class BdfProcessor:
 
         if signal_position >= self.heart_rates[self.pulse_sequence][1]:
             self.publisher.publish(self.heart_rates[self.pulse_sequence][0], timestamp)
+            self.pulse_sequence += 1
 
     def get_signal(self, name='EXG2'):
         reader = pyedflib.EdfReader(self.bdf_file)

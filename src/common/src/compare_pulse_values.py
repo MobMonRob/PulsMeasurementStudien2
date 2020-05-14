@@ -62,7 +62,17 @@ class ComparePulseValues:
         self.published_error_value_sequence += 1
 
     def write_to_csv(self, time):
-        csv_file = open("compare.csv", "a+")
+        topic_csv = ""
+        topic_to_compare_csv = ""
+        if self.topic == "/pulsgurt":
+            topic_csv = "pulsgurt"
+        elif self.topic == "/ecg/pulse":
+            topic_csv = "ecg"
+
+        if self.topic_to_compare == "/pulse_head_movement/pulse":
+            topic_to_compare_csv = "pulse_head_movement"
+
+        csv_file = open(topic_csv+"_"+topic_to_compare_csv+"_compare.csv", "a+")
         writer = csv.writer(csv_file)
         writer.writerow([time, self.error])
 

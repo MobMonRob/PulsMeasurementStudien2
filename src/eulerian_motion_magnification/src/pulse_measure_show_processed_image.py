@@ -18,6 +18,11 @@ from face_detection import FaceDetector
 
 
 def build_gaussian_pyramid(frame, level=3):
+    """
+    Logic to build gaussian pyramid. Each level is 1/4 of the last image that's passed in.
+    The pyramid list contains all processed images, including the not processed original one.
+    The whole pyramid is passed to the method build_gaussian_frame
+    """
     s = frame.copy()
     pyramid = [s]
     for i in range(level):
@@ -26,15 +31,29 @@ def build_gaussian_pyramid(frame, level=3):
     return pyramid
 
 
-def build_gaussian_frame(normalized, level):
-    pyramid = build_gaussian_pyramid(normalized, level)
+def build_gaussian_frame(normalized_frame, level):
+    """
+    Build gaussian pyramid. Level is indicating how deep the gaussian pyramid has to be.
+    The actual logic to downsample is in method build_gaussian_pyramid.
+    Only the last frame of the pyramid is needed.
+    :param level: how deep gaussian pyramid needs be calculated
+    :param normalized_frame: frame to downsample
+    """
+    pyramid = build_gaussian_pyramid(normalized_frame, level)
     gaussian_frame = pyramid[-1]
     return gaussian_frame
 
 
-def do_filtering_on_all(what_to_filter, low, high, fps):
-    fft = fftpack.fft(what_to_filter, axis=0)
-    frequencies = fftpack.fftfreq(what_to_filter.shape[0], d=1.0 / fps)
+def temporal_bandpass_filter(video_to_filter, low, high, fps):
+    """
+    Filters colour-intensity changes that conform to the low and high frequencies.
+    Colour-intensity changes should between low and high frequencies.
+    :param video_to_filter:
+    :param low: frequencies for lower bound
+    :param high: frequencies for higher bound
+    """
+    fft = fftpack.fft(video_to_filter, axis=0)
+    frequencies = fftpack.fftfreq(video_to_filter.shape[0], d=1.0 / fps)
     bound_low = (np.abs(frequencies - low)).argmin()
     bound_high = (np.abs(frequencies - high)).argmin()
     fft[:bound_low] = 0
@@ -44,18 +63,31 @@ def do_filtering_on_all(what_to_filter, low, high, fps):
     return iff
 
 
-def amplify_video(filtered_tensor, amplify):
-    amplification_array = np.asarray(filtered_tensor, dtype=np.float32)
+def amplify_video(filtered_video, amplify):
+    """
+    Multiply the filtered colour-intensity-changes with the amplifying factor
+    :param filtered_video: array, containing frames after passing temporal_bandpass_filter
+    :param amplify: indicates by how much changes need to be amplified
+    """
+    amplification_array = np.asarray(filtered_video, dtype=np.float32)
     amplification_array = np.multiply(amplification_array, amplify)
     return amplification_array
 
 
-def calculate_pulse(amplified_filtered_frames, recorded_time):
-    amplified_filtered_frames = extract_red_values(amplified_filtered_frames)
-    amplified_filtered_frames = np.asarray(amplified_filtered_frames, dtype=np.float32)
+def calculate_pulse(processed_video, recorded_time):
+    """
+    The processed images, saved in processed_video, is used as the data basis to calculate the pulse.
+    For the actual calculation, only the red values are needed. Therefore these are extracted with the method
+    extract_red_values.
+    The mean value of all the pixels in an image is calculated and added to list red_values.
+    On this array the peaks are detected and the amount of peaks is used to calculate bpm.
+    : param recorded_time: Timespan, where images are collected in array
+    """
+    processed_video = extract_red_values(processed_video)
+    processed_video = np.asarray(processed_video, dtype=np.float32)
     red_values = []
-    for i in range(0, amplified_filtered_frames.shape[0]):
-        img = amplified_filtered_frames[i]
+    for i in range(0, processed_video.shape[0]):
+        img = processed_video[i]
         red_intensity = np.mean(img)
         red_values.append(red_intensity)
     peaks, _ = find_peaks(red_values)
@@ -65,32 +97,50 @@ def calculate_pulse(amplified_filtered_frames, recorded_time):
     return pulse, red_values
 
 
-def extract_red_values(amplified_filtered_frames):
+def extract_red_values(processed_video):
+    """
+    Filters red-intensities of the image (Color channel 2) and adds to red_values list
+    """
     red_values = []
-    for i in range(0, amplified_filtered_frames.shape[0]):
-        red_value = amplified_filtered_frames[i, :, 2]
+    for i in range(0, processed_video.shape[0]):
+        red_value = processed_video[i, :, 2]
         red_values.append(red_value)
     return red_values
 
 
-def upsample_images(copy_video_array, video_array, arraylength, levels):
-    copy_video_array = np.asarray(copy_video_array, dtype=np.float32)
+def upsample_images(processed_video, unprocessed_video, arraylength, levels):
+    """
+    Upsample images in video sequence to be able to display them.
+    Iterate through each image and add processed image to unprocessed image.
+    Upsample resulting image by reversing gaussian pyramide.
+    """
+    processed_video = np.asarray(processed_video, dtype=np.float32)
     upsampled_images = np.zeros((arraylength, 200, 200, 3))
-    for i in range(0, copy_video_array.shape[0]):
-        img = copy_video_array[i]
-        img = img + video_array[i]
+    for i in range(0, processed_video.shape[0]):
+        img = processed_video[i]
+        img = img + unprocessed_video[i]
         for x in range(levels):
             img = cv2.pyrUp(img)
         upsampled_images[i] = img
     return upsampled_images
 
 
-def show_images(copy_video_array, video_array, arraylength, isFirst, levels, calculating_boarder):
-    copy_video_array = upsample_images(copy_video_array, video_array, arraylength, levels)
+def show_images(processed_video, unprocessed_video, arraylength, isFirst, levels, calculating_boarder, fps):
+    """
+    Show upsampled images to make color-intensity-changes visible to the human eye.
+    Show whole video-sequence if it's the first time executing. If it's not the first time,
+    show only new images.
+    :param processed_video: Array, containing processed images
+    :param unprocessed_video: Array, containing original frames without filtering and amplification
+    :param isFirst: indicates, whether first round of calculation
+    :param levels: depth of gaussian pyramide, indicates how many rounds are needed to upsample
+    :param calculating_boarder: how many images are new since last calculation
+    """
+    processed_video = upsample_images(processed_video, unprocessed_video, arraylength, levels)
     if not isFirst:
-        copy_video_array = copy_video_array[-calculating_boarder:]
-    for image in copy_video_array:
-        time.sleep(0.0166)
+        processed_video = processed_video[-calculating_boarder:]
+    for image in processed_video:
+        time.sleep(1/fps)
         cv2.imshow("colour changes pulse", image)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -116,15 +166,22 @@ class PulseMeasurement:
         self.arrayLength = 0
 
     def calculate_fps(self):
+        """
+        calculate fps of incoming frames by calculating time-difference of the first timestamp (first image
+        in array) and last timestamp (last image in array)
+        """
         time_difference = self.time_array[-1] - self.time_array[0]
         time_difference_in_seconds = time_difference.to_sec()
         if time_difference_in_seconds == 0:
             pass
         self.fps = self.buffer_size / time_difference_in_seconds
         print("fps:" + str(self.fps))
-        print(len(self.video_array))
 
     def publish_pulse(self, pulse, red_values):
+        """
+        Publish calculated pulse to ROS. Message is of type Float32.
+        :param pulse: calculated pulse value
+        """
         msg_to_publish_pulse = pulse
         self.pub_pulse.publish(msg_to_publish_pulse)
 
@@ -152,13 +209,13 @@ class PulseMeasurement:
                 self.arrayLength = len(self.video_array)
                 print("length final " + str(self.arrayLength))
                 self.calculate_fps()
-                copy_video_array = np.copy(self.video_array)
-                copy_video_array = np.asarray(copy_video_array, dtype=np.float32)
-                copy_video_array = do_filtering_on_all(copy_video_array, self.low, self.high, self.fps)
-                final_array = amplify_video(copy_video_array, amplify=self.amplification)
-                pulse, red_values = calculate_pulse(copy_video_array, self.recording_time)
+                video_to_process = np.copy(self.video_array)
+                video_to_process = np.asarray(video_to_process, dtype=np.float32)
+                video_to_process = temporal_bandpass_filter(video_to_process, self.low, self.high, self.fps)
+                processed_video = amplify_video(video_to_process, amplify=self.amplification)
+                pulse, red_values = calculate_pulse(video_to_process, self.recording_time)
                 self.publish_pulse(pulse, red_values)
-                show_images(final_array, self.video_array, self.arrayLength, self.isFirst, self.levels, self.calculating_boarder)
+                show_images(processed_video, self.video_array, self.arrayLength, self.isFirst, self.levels, self.calculating_boarder, self.fps)
                 self.calculating_at = 0
                 self.isFirst = False
 

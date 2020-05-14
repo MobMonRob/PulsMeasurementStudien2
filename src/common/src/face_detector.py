@@ -222,11 +222,8 @@ class FaceDetector:
         if self.frame_count % 60 is 0:
             end = time.time()
             seconds = end - self.start
-            rospy.loginfo("[FaceDetector] Time taken: " + str(seconds) + " seconds")
-
             fps = 60 / seconds
-            rospy.loginfo("[FaceDetector] Estimated frames per second: " + str(fps))
-
+            rospy.loginfo("[FaceDetector] Estimated FPS: " + str(fps) + " (Time taken: " + str(seconds) + "s)")
             self.start = time.time()
 
     def get_timestamp(self):

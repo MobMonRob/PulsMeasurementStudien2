@@ -52,7 +52,7 @@ class ComparePulseValues:
             self.write_to_csv(time)
 
     def publish_error(self, time):
-        rospy.loginfo("[ComparePulseValues] Error: "+str(self.error))
+        rospy.loginfo("[ComparePulseValues] Calculated error: "+str(self.error))
         msg_to_publish = Error()
         msg_to_publish.error = self.error
         msg_to_publish.time.stamp = time
@@ -64,8 +64,8 @@ class ComparePulseValues:
     def write_to_csv(self, time):
         topic_csv = ""
         topic_to_compare_csv = ""
-        if self.topic == "/pulsgurt":
-            topic_csv = "pulsgurt"
+        if self.topic == "/pulse_chest_strap":
+            topic_csv = "pulse_chest_strap"
         elif self.topic == "/ecg/pulse":
             topic_csv = "ecg"
 
@@ -80,10 +80,10 @@ class ComparePulseValues:
 def main():
     rospy.init_node("compare", anonymous=False, log_level=rospy.DEBUG)
 
-    topic = rospy.get_param("~topic", "/pulsgurt")
+    topic = rospy.get_param("~topic", "/pulse_chest_strap")
     rospy.loginfo("[ComparePulseValues] Listening on topic '" + topic + "'")
 
-    topic_to_compare = rospy.get_param("~topicToCompare", "/pulse_head_movement/pulse")
+    topic_to_compare = rospy.get_param("~topic_to_compare", "/pulse_head_movement/pulse")
     rospy.loginfo("[ComparePulseValues] Listening on topic '" + topic_to_compare + "'")
 
     pulse = ComparePulseValues(topic, topic_to_compare)

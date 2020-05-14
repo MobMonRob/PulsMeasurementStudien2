@@ -1,9 +1,11 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="topic" default="/webcam/image_raw" />
-    <arg name="show_image_frame" default="true" />
     <arg name="show_processed_image" default="false" />
+    <arg name="show_image_frame" default="true" />
     <arg name="cascade_file" default="$(find common)/config/cascade.xml" />
+    <arg name="video_file" default="" />
+    <arg name="bdf_file" default="" />
     <node pkg="eulerian_motion_magnification" type="eulerian_motion_magnification.py" name="eulerian_motion_magnification" output="screen">
         <param name="show_processed_image" type="bool" value="$(arg show_processed_image)" />
         <param name="topic" type="string" value="$(arg topic)" />

@@ -156,7 +156,7 @@ class PulseMeasurement:
         self.low = 1.3
         self.high = 1.7
         self.amplification = 30
-        self.publisher = PulsePublisher("eulerian")
+        self.publisher = PulsePublisher("eulerian_motion_magnification")
         self.fps = 30
         self.video_array = []
         self.buffer_size = 0

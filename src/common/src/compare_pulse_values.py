@@ -6,6 +6,8 @@ from common.msg import Pulse
 from common.msg import Error
 import sys
 import rospy
+import csv
+
 
 class ComparePulseValues:
 
@@ -45,16 +47,35 @@ class ComparePulseValues:
             self.timestamp = pulse.time
             absolute_error = abs(self.pulseToCompare-self.pulse)
             self.error = (absolute_error/self.pulse)*100
-            self.publish_error()
+            time = rospy.Time.now()
+            self.publish_error(time)
+            self.write_to_csv(time)
 
-    def publish_error(self):
+    def publish_error(self, time):
         rospy.loginfo("[ComparePulseValues] Error: "+str(self.error))
         msg_to_publish = Error()
         msg_to_publish.error = self.error
-        msg_to_publish.time.stamp = rospy.Time.now()
+        msg_to_publish.time.stamp = time
         msg_to_publish.time.seq = self.published_error_value_sequence
         self.pub.publish(msg_to_publish)
+
         self.published_error_value_sequence += 1
+
+    def write_to_csv(self, time):
+        topic_csv = ""
+        topic_to_compare_csv = ""
+        if self.topic == "/pulsgurt":
+            topic_csv = "pulsgurt"
+        elif self.topic == "/ecg/pulse":
+            topic_csv = "ecg"
+
+        if self.topic_to_compare == "/pulse_head_movement/pulse":
+            topic_to_compare_csv = "pulse_head_movement"
+
+        csv_file = open(topic_csv+"_"+topic_to_compare_csv+"_compare.csv", "a+")
+        writer = csv.writer(csv_file)
+        writer.writerow([time, self.error])
+
 
 def main():
     rospy.init_node("compare", anonymous=False, log_level=rospy.DEBUG)
@@ -62,7 +83,7 @@ def main():
     topic = rospy.get_param("~topic", "/pulsgurt")
     rospy.loginfo("[ComparePulseValues] Listening on topic '" + topic + "'")
 
-    topic_to_compare = rospy.get_param("~topicToCompare", "/head_movement_pulse")
+    topic_to_compare = rospy.get_param("~topicToCompare", "/pulse_head_movement/pulse")
     rospy.loginfo("[ComparePulseValues] Listening on topic '" + topic_to_compare + "'")
 
     pulse = ComparePulseValues(topic, topic_to_compare)

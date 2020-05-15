@@ -31,6 +31,7 @@ class PulseChestStrap:
 
     def __init__(self):
         self.publisher = PulsePublisher("pulse_chest_strap")
+        self.start_time = rospy.Time.now()
 
     def run(self, addr=None, gatttool="gatttool"):
         """
@@ -144,7 +145,7 @@ class PulseChestStrap:
                 res = self.interpret(data)
 
                 rospy.loginfo("[PulseChestStrap] Heart rate: " + str(res["hr"]))
-                self.publisher.publish(res["hr"], rospy.Time.now())
+                self.publisher.publish(res["hr"], rospy.Time.now() - self.start_time)
                 seq += 1
 
         # We quit close the BLE connection properly

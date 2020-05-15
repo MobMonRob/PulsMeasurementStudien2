@@ -154,7 +154,7 @@ class PulseMeasurement:
         self.count = 0
         self.levels = 2
         self.low = 0.9
-        self.high = 1.7
+        self.high = 2.5
         self.amplification = 30
         self.publisher = PulsePublisher("eulerian_motion_magnification")
         self.fps = 30

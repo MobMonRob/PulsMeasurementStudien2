@@ -75,6 +75,10 @@ class ComparePulseValues:
 
         if self.topic_to_compare == "/pulse_head_movement":
             topic_to_compare_csv = "pulse_head_movement"
+        elif self.topic_to_compare == "/eulerian_motion_magnification":
+            topic_to_compare_csv = "eulerian_motion_magnification"
+        elif self.topic_to_compare == "/legacy_measurement":
+            topic_to_compare_csv = "legacy_measurement"
 
         filename = "pulse_measurement/compare/" + topic_csv + "_" + topic_to_compare_csv + "_compare_" + self.date + ".csv"
 

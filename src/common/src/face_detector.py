@@ -42,7 +42,7 @@ class FaceDetector:
             self.bdf_processor.run()
 
         self.start = time.time()
-        self.start_time = rospy.Time.from_sec(0)
+        self.start_time = rospy.Time.now()
 
         if self.video_file:
             capture = cv2.VideoCapture(self.video_file)
@@ -228,8 +228,8 @@ class FaceDetector:
 
     def get_timestamp(self):
         if not self.video_file:
-            return rospy.Time.now()
+            return rospy.Time.now() - self.start_time
 
         percentage = self.frame_count / float(self.total_video_frames)
         offset = (percentage * self.video_duration)
-        return self.start_time + rospy.Duration.from_sec(offset)
+        return rospy.Time.from_sec(0) + rospy.Duration.from_sec(offset)

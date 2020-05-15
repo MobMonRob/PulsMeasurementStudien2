@@ -153,7 +153,7 @@ class PulseMeasurement:
         self.show_processed_image = show_processed_image
         self.count = 0
         self.levels = 2
-        self.low = 1.3
+        self.low = 0.9
         self.high = 1.7
         self.amplification = 30
         self.publisher = PulsePublisher("eulerian_motion_magnification")

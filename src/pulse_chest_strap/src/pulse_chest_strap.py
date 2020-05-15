@@ -37,8 +37,6 @@ class PulseChestStrap:
         """
         main routine to which orchestrates everything
         """
-        # set up ROS node
-        rospy.init_node("pulse_chest_strap", anonymous=False, disable_signals=True)
         # number of measured pulse values. Increments for every measured value
         seq = 0
 
@@ -209,6 +207,8 @@ def main():
     """
     Entry point for the command line interface
     """
+    # set up ROS node
+    rospy.init_node("pulse_chest_strap", anonymous=False, disable_signals=True)
     args = parse_args()
 
     if args.g != "gatttool" and not os.path.exists(args.g):

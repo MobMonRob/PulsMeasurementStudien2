@@ -24,7 +24,7 @@ class ComparePulseValues:
         self.pulse = None
         self.pulseToCompare = None
         self.error = None
-        self.timestamp = None
+        self.start_time = rospy.Time.now()
         self.date = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
     def run(self):
@@ -48,24 +48,23 @@ class ComparePulseValues:
             self.pulseToCompare = pulse.pulse
 
         if self.pulseToCompare is not None and self.pulse is not None:
-            self.timestamp = pulse.time
             absolute_error = abs(self.pulseToCompare - self.pulse)
             self.error = (absolute_error / self.pulse) * 100
-            time = rospy.Time.now()
-            self.publish_error(time)
-            self.write_to_csv(time)
+            timestamp = rospy.Time.now() - self.start_time
+            self.publish_error(timestamp)
+            self.write_to_csv(timestamp)
 
-    def publish_error(self, time):
+    def publish_error(self, timestamp):
         rospy.loginfo("[ComparePulseValues] Calculated error: " + str(self.error))
         msg_to_publish = Error()
         msg_to_publish.error = self.error
-        msg_to_publish.time.stamp = time
+        msg_to_publish.time.stamp = timestamp
         msg_to_publish.time.seq = self.published_error_value_sequence
         self.pub.publish(msg_to_publish)
 
         self.published_error_value_sequence += 1
 
-    def write_to_csv(self, time):
+    def write_to_csv(self, timestamp):
         topic_csv = ""
         topic_to_compare_csv = ""
 
@@ -85,7 +84,7 @@ class ComparePulseValues:
         csv_file = open(filename, "a+")
 
         writer = csv.writer(csv_file)
-        writer.writerow([time, self.error])
+        writer.writerow([timestamp, self.error])
 
 
 def main():

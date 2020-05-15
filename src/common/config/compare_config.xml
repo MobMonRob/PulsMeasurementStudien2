@@ -1,20 +1,21 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <root version="2.3.8">
  <tabbed_widget parent="main_window" name="Main Window">
-  <plotmatrix tab_name="plot" rows="2" columns="1">
+  <plotmatrix columns="1" tab_name="plot" rows="2">
    <plot row="0" col="0">
-    <range left="-123.385539" right="137.811769" top="118.950000" bottom="42.090000"/>
+    <range left="1589540239.175039" bottom="40.955955" top="81.358886" right="1589540375.674444"/>
     <limitY/>
-    <curve B="180" custom_transform="XYPlot" name="/ecg/[pulse;time/stamp]" curve_x="/ecg/time/stamp" curve_y="/ecg/pulse" G="119" R="31"/>
-    <curve B="40" custom_transform="XYPlot" name="/eulerian_motion_magnification/[pulse;time/stamp]" curve_x="/eulerian_motion_magnification/time/stamp" curve_y="/eulerian_motion_magnification/pulse" G="39" R="214"/>
-    <curve B="193" custom_transform="XYPlot" name="/legacy_measurement/[pulse;time/stamp]" curve_x="/legacy_measurement/time/stamp" curve_y="/legacy_measurement/pulse" G="76" R="241"/>
-    <curve B="14" custom_transform="XYPlot" name="/pulse_head_movement/[pulse;time/stamp]" curve_x="/pulse_head_movement/time/stamp" curve_y="/pulse_head_movement/pulse" G="127" R="255"/>
+    <curve G="119" B="180" custom_transform="XYPlot" curve_x="/ecg/time/stamp" R="31" curve_y="/ecg/pulse" name="/ecg/[pulse;time/stamp]"/>
+    <curve G="39" B="40" custom_transform="XYPlot" curve_x="/eulerian_motion_magnification/time/stamp" R="214" curve_y="/eulerian_motion_magnification/pulse" name="/eulerian_motion_magnification/[pulse;time/stamp]"/>
+    <curve G="76" B="193" custom_transform="XYPlot" curve_x="/legacy_measurement/time/stamp" R="241" curve_y="/legacy_measurement/pulse" name="/legacy_measurement/[pulse;time/stamp]"/>
+    <curve G="103" B="189" custom_transform="XYPlot" curve_x="/pulse_chest_strap/time/stamp" R="148" curve_y="/pulse_chest_strap/pulse" name="/pulse_chest_strap/[pulse;time/stamp]"/>
+    <curve G="127" B="14" custom_transform="XYPlot" curve_x="/pulse_head_movement/time/stamp" R="255" curve_y="/pulse_head_movement/pulse" name="/pulse_head_movement/[pulse;time/stamp]"/>
     <transform value="XYPlot"/>
    </plot>
    <plot row="1" col="0">
-    <range left="1589478295.154826" right="1589478465.479057" top="55.463226" bottom="5.505111"/>
+    <range left="1589540245.112679" bottom="6.124232" top="44.479126" right="1589540375.051836"/>
     <limitY/>
-    <curve B="56" custom_transform="XYPlot" name="/compare_pulse_values/[error;time/stamp]" curve_x="/compare_pulse_values/time/stamp" curve_y="/compare_pulse_values/error" G="201" R="26"/>
+    <curve G="201" B="56" custom_transform="XYPlot" curve_x="/compare_pulse_values/time/stamp" R="26" curve_y="/compare_pulse_values/error" name="/compare_pulse_values/[error;time/stamp]"/>
     <transform value="XYPlot"/>
    </plot>
   </plotmatrix>

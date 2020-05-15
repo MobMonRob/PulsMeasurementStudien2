@@ -1,6 +1,8 @@
 from common.msg import Pulse
+from datetime import datetime
 
 import csv
+import os
 import rospy
 
 
@@ -11,6 +13,7 @@ class PulsePublisher:
         self.topic = "/" + name
         self.publisher = rospy.Publisher(self.topic, Pulse, queue_size=10)
         self.sequence = 0
+        self.date = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
     def publish(self, pulse, timestamp):
         rospy.loginfo("[PulsePublisher] Publishing pulse ('" + self.topic + "'): " + str(pulse))
@@ -27,6 +30,11 @@ class PulsePublisher:
         self.sequence += 1
 
     def write_to_csv(self, pulse, timestamp):
-        csv_file = open(self.name + "_pulse.csv", "a+")
+        filename = "pulse_measurement/" + self.name + "/pulses_" + self.date + ".csv"
+
+        if not os.path.exists(os.path.dirname(filename)):
+            os.makedirs(os.path.dirname(filename))
+
+        csv_file = open(filename, "a+")
         writer = csv.writer(csv_file)
         writer.writerow([timestamp, pulse])

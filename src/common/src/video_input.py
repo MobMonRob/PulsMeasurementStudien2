@@ -72,8 +72,8 @@ class VideoInput:
 
     def calculate_fps(self):
         if self.frame_count % 60 is 0:
-            end = time.time()
-            seconds = end - self.fps_start_time
+            fps_end_time = time.time()
+            seconds = fps_end_time - self.fps_start_time
             fps = 60 / seconds
             rospy.loginfo("[VideoInput] Estimated FPS: " + str(fps) + " (Time taken: " + str(seconds) + "s)")
             self.fps_start_time = time.time()

@@ -7,15 +7,14 @@ from pulse_publisher import PulsePublisher
 import sys
 import numpy as np
 import time
-import cv2
 import rospy
 import matplotlib.pyplot as plt
 
 
 class LegacyMeasurement(object):
 
-    def __init__(self):
-        self.roi = np.zeros((10, 10))
+    def __init__(self, is_video):
+        self.is_video = is_video
         self.fps = 0
         self.buffer_size = 250
         self.data_buffer = []
@@ -25,20 +24,17 @@ class LegacyMeasurement(object):
         self.freqs = []
         self.fft = []
         self.slices = [[0]]
-        self.t0 = time.time()
         self.bpms = []
         self.bpm = 0
         self.MAX_BPM = 150
         self.MIN_BPM = 40
         self.pulse_sequence = 0
         self.publisher = PulsePublisher("legacy_measurement")
-        self.count = 0
+        self.publish_count = 0
 
-    def on_image(self, roi, timestamp):
-        self.count += 1
-        self.times.append(time.time() - self.t0)
-        self.roi = roi
-        self.gray = cv2.equalizeHist(cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY))
+    def on_image_frame(self, roi, timestamp):
+        self.publish_count += 1
+        self.times.append(timestamp.to_sec())
 
         # calculate mean green from roi
         green_mean = np.mean(self.extractGreenColorChannel(roi))
@@ -60,21 +56,21 @@ class LegacyMeasurement(object):
         # create array from average green values of all processed frames
         processed = np.array(self.data_buffer)
 
-        # start heart rate measurment after 10 frames
-        if L == self.buffer_size and self.count % 30 == 0:
-            # calculate fps
-            # self.fps = float(L) / (self.times[-1] - self.times[0])
-            self.fps = 61
-
-            # calculate equidistant frame times
-            # even_times = np.linspace(self.times[0], self.times[-1], L)
-
+        # calculate heart rate every 30 frames
+        if L == self.buffer_size and self.publish_count % 30 == 0:
             # remove linear trend on processed data to avoid interference of light change
             processed = signal.detrend(processed)
 
-            # interpolate the values for the even times
-            # interpolated = np.interp(x=even_times, xp=self.times, fp=processed)
-            interpolated = processed
+            # calculate fps
+            self.fps = float(L) / (self.times[-1] - self.times[0])
+
+            if self.is_video:
+                interpolated = processed
+            else:
+                # calculate equidistant frame times
+                even_times = np.linspace(self.times[0], self.times[-1], L)
+                # interpolate the values for the even times
+                interpolated = np.interp(x=even_times, xp=self.times, fp=processed)
 
             # apply hamming window to make the signal become more periodic
             interpolated = np.hamming(L) * interpolated
@@ -112,7 +108,7 @@ class LegacyMeasurement(object):
         self.samples = processed
 
         # plot fourrier transform
-        if L == self.buffer_size and self.count % 30 == 0:
+        if L == self.buffer_size and self.publish_count % 30 == 0:
             index = np.arange(len(self.data_buffer))
 
             data = self.data_buffer - np.mean(self.data_buffer)
@@ -133,8 +129,6 @@ class LegacyMeasurement(object):
             plt.title('Fourier Transformation')
             plt.draw()
             plt.pause(0.001)
-
-        return self.roi
 
     def extractGreenColorChannel(self, frame):
         return frame[:, :, 1]
@@ -160,10 +154,11 @@ def main():
     rospy.loginfo("[LegacyMeasurement] Show image frame: '" + str(show_image_frame) + "'")
 
     # Start heart rate measurement
-    pulse_measurement = LegacyMeasurement()
+    is_video = video_file != ""
+    pulse_measurement = LegacyMeasurement(is_video)
 
     face_detector = FaceDetector(topic, cascade_file)
-    face_detector.bottom_face_callback = pulse_measurement.on_image
+    face_detector.bottom_face_callback = pulse_measurement.on_image_frame
     face_detector.run(video_file, bdf_file, show_image_frame)
 
     rospy.spin()

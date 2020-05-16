@@ -75,7 +75,7 @@ class VideoInput:
             fps_end_time = time.time()
             seconds = fps_end_time - self.fps_start_time
             fps = 60 / seconds
-            rospy.loginfo("[VideoInput] Estimated FPS: " + str(fps) + " (Time taken: " + str(seconds) + "s)")
+            rospy.loginfo("[VideoInput] Estimated FPS: " + str(fps) + " (Measured timespan: " + str(seconds) + "s)")
             self.fps_start_time = time.time()
 
     def get_timestamp(self):

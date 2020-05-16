@@ -212,10 +212,9 @@ class PulseHeadMovement:
         Helper method to calculate fps for performance measuring.
         """
         timespan = time_array[-1]-time_array[0]
-        rospy.loginfo("[PulseHeadMovement] Measured timespan: "+str(timespan))
         fps = self.refresh_rate/timespan
         self.fps = fps
-        rospy.loginfo("[PulseHeadMovement] FPS: " + str(fps))
+        rospy.loginfo("[PulseHeadMovement] Estimated FPS: " + str(fps) + " (Measured timespan: " + str(timespan) + "s)")
 
     def remove_erratic_trajectories(self, y_tracking_signal):
         """
@@ -357,6 +356,11 @@ class PulseHeadMovement:
             spectrum, frequencies,_ = plt.magnitude_spectrum(signal, Fs=sample_rate)
             max_index = np.argmax(spectrum)
             strongest_frequency = frequencies[max_index]
+
+            # strongest frequency is far too small
+            if strongest_frequency < 0.1:
+                continue
+
             T_i = int(sample_rate/strongest_frequency)
             s_i_new = np.roll(signal, T_i)
             correlation = stats.pearsonr(s_i_new, signal)[0]

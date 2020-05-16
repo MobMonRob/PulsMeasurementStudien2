@@ -154,7 +154,7 @@ class PulseMeasurement:
         self.count = 0
         self.levels = 2
         self.low = 0.9
-        self.high = 2.5
+        self.high = 1.3
         self.amplification = 30
         self.publisher = PulsePublisher("eulerian_motion_magnification")
         self.fps = 30
@@ -177,7 +177,7 @@ class PulseMeasurement:
         if time_difference_in_seconds == 0:
             pass
         self.fps = self.buffer_size / time_difference_in_seconds
-        rospy.loginfo("[EulerianMotionMagnification] FPS: " + str(self.fps))
+        rospy.loginfo("[EulerianMotionMagnification] Estimated FPS: " + str(self.fps) + " (Measured timespan: " + str(time_difference_in_seconds) + "s)")
         rospy.loginfo("[EulerianMotionMagnification] Video array length: " + str(len(self.video_array)))
 
     # calculate pulse after certain amount of images taken, calculation based on a larger amount of time

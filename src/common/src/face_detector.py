@@ -27,12 +27,21 @@ class FaceDetector:
         video_input.run(video_file, bdf_file)
 
     def detect_faces_and_extract_rois(self, cv_image, timestamp):
+        """
+        Detects the biggest face in an image and extracts multiple Region of Interests (forehead and bottom region).
+        Results are published via callbacks.
+        : param cv_image: The image frame that should be used for the face detection
+        : param timestamp: Timestamp of the image frame
+        """
+
         # Get gray scale image from OpenCV
         gray_scale_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
         # Create the haar cascade
         face_cascade = cv2.CascadeClassifier(self.cascade_file)
 
+        # Calculate the min and max face size to be detected
+        # Because input frames can be of different sizes, this is calculated dynamically on the first image callback
         if not self.min_face_size or not self.max_face_size:
             height = np.size(cv_image, 0)
             self.min_face_size = (height / 3, height / 3)
@@ -140,6 +149,11 @@ class FaceDetector:
             cv2.waitKey(3)
 
     def get_biggest_face(self, faces):
+        """
+        Detects the biggest face using the width and the height of the detected face rectangles.
+        :param faces: Rectangles of the detected faces
+        :return: The biggest face found, if one exists
+        """
         if len(faces) is 1:
             return faces[0]
 
@@ -153,6 +167,12 @@ class FaceDetector:
         return biggest_face
 
     def get_mask(self, gray_scale_image, rects):
+        """
+        Returns a mask of zeros or ones with the size of the provided image.
+        :param gray_scale_image: The image of which the mask should be created
+        :param rects: The regions where the mask should be 1
+        :return: The calculated mask out of the provided image and the rectangles
+        """
         # Generate mask with zeros
         mask = np.zeros_like(gray_scale_image)
 

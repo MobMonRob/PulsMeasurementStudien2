@@ -16,11 +16,21 @@ class PulsePublisher:
         self.date = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
     def publish(self, pulse, timestamp):
+        """
+        Publishes the pulse value to ROS and also writes it into a csv file.
+        :param pulse: The pulse value to publish in ROS and to write into a csv file.
+        :param timestamp: The timestamp corresponding to the pulse value.
+        """
         rospy.loginfo("[PulsePublisher] Publishing pulse ('" + self.topic + "'): " + str(pulse))
         self.publish_to_ros(pulse, timestamp)
         self.write_to_csv(pulse, timestamp)
 
     def publish_to_ros(self, pulse, timestamp):
+        """
+        Publishes the pulse value to ROS using self.topic as topic.
+        :param pulse: The pulse value to publish in ROS.
+        :param timestamp: The timestamp corresponding to the pulse value.
+        """
         ros_msg = Pulse()
         ros_msg.pulse = pulse
         ros_msg.time.stamp = timestamp
@@ -30,6 +40,13 @@ class PulsePublisher:
         self.sequence += 1
 
     def write_to_csv(self, pulse, timestamp):
+        """
+        Writes the pulse value into a csv file.
+        The file will be created inside the ROS_HOME directory using the name of the publisher
+        and the start date of the script.
+        :param pulse: The pulse value to write.
+        :param timestamp: The timestamp corresponding to the pulse value.
+        """
         filename = "pulse_measurement/" + self.name + "/pulses_" + self.date + ".csv"
 
         if not os.path.exists(os.path.dirname(filename)):

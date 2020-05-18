@@ -1,16 +1,15 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="topic" default="/webcam/image_raw" />
+    <arg name="input_topic" default="/webcam/image_raw" />
     <arg name="cascade_file" default="$(find common)/config/cascade.xml" />
     <arg name="show_image_frame" default="true" />
     <arg name="show_processed_image" default="false" />
     <arg name="fps" default="30" />
-    <arg name="video_file" default="0"/>
     <include file="$(find video_stream_opencv)/launch/camera.launch" >
         <!-- node name and ros graph name -->
         <arg name="camera_name" value="webcam" />
         <!-- means video device 0, /dev/video0 -->
-        <arg name="video_stream_provider" value="$(arg video_file)" />
+        <arg name="video_stream_provider" value="$(arg0)" />
         <!-- set camera fps to (if the device allows) -->
         <arg name="set_camera_fps" value="$(arg fps)"/>
         <!-- set buffer queue size of frame capturing to (1 means we want the latest frame only) -->
@@ -30,7 +29,7 @@
         <arg name="visualize" value="false" />
     </include>
     <include file="$(find eulerian_motion_magnification)/launch/eulerian_motion_magnification.launch">
-        <arg name="topic" value="$(arg topic)" />
+        <arg name="input_topic" value="$(arg input_topic)" />
         <arg name="show_image_frame" value="$(arg show_image_frame)" />
         <arg name="cascade_file" value="$(arg cascade_file)" />
         <arg name="show_processed_image" value="$(arg show_processed_image)" />

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="topic" default="/webcam/image_raw" />
+    <arg name="input_topic" default="/webcam/image_raw" />
     <arg name="cascade_file" default="$(find common)/config/cascade.xml" />
     <arg name="show_image_frame" default="false" />
     <arg name="fps" default="30" />
@@ -29,7 +29,7 @@
         <arg name="visualize" value="false" />
     </include>
     <include file="$(find pulse_head_movement)/launch/pulse_head_movement.launch">
-        <arg name="topic" value="$(arg topic)" />
+        <arg name="input_topic" value="$(arg input_topic)" />
         <arg name="show_image_frame" value="$(arg show_image_frame)" />
         <arg name="cascade_file" value="$(arg cascade_file)" />
     </include>

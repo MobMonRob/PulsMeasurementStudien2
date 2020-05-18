@@ -1,7 +1,12 @@
 <?xml version="1.0"?>
 <launch>
-    <include file="$(find common)/launch/idustry_camera.launch" />
-    <include file="$(find legacy_measurement)/launch/legacy_measurement.launch">
-        <arg name="topic" value="/common/forehead" />
-    </include>
+    <arg name="input_topic" default="/pylon_camera_node/image_raw" />
+    <arg name="show_image_frame" default="true" />
+    <arg name="cascade_file" default="$(find common)/config/cascade.xml" />
+    <include file="$(find pylon_camera)/launch/pylon_camera_node.launch" />
+    <node pkg="legacy_measurement" type="legacy_measurement.py" name="legacy_measurement" output="screen">
+        <param name="input_topic" type="string" value="$(arg input_topic)" />
+        <param name="show_image_frame" type="bool" value="$(arg show_image_frame)" />
+        <param name="cascade_file" type="string" value="$(arg cascade_file)" />
+    </node>
 </launch>

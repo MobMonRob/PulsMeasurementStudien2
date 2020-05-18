@@ -138,8 +138,8 @@ def main():
     rospy.init_node("legacy_measurement", anonymous=False, log_level=rospy.DEBUG)
 
     # Get ROS topic from launch parameter
-    topic = rospy.get_param("~topic", "/webcam/image_raw")
-    rospy.loginfo("[LegacyMeasurement] Listening on topic '" + topic + "'")
+    input_topic = rospy.get_param("~input_topic", "/webcam/image_raw")
+    rospy.loginfo("[LegacyMeasurement] Listening on topic '" + input_topic + "'")
 
     video_file = rospy.get_param("~video_file", None)
     rospy.loginfo("[LegacyMeasurement] Video file input: '" + str(video_file) + "'")
@@ -157,7 +157,7 @@ def main():
     is_video = video_file != ""
     pulse_measurement = LegacyMeasurement(is_video)
 
-    face_detector = FaceDetector(topic, cascade_file)
+    face_detector = FaceDetector(input_topic, cascade_file)
     face_detector.bottom_face_callback = pulse_measurement.on_image_frame
     face_detector.run(video_file, bdf_file, show_image_frame)
 

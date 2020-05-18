@@ -1,21 +1,5 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
-"""
-    BLEHeartRateLogger
-    ~~~~~~~~~~~~~~~~~~~
-
-    A tool to log your heart rate using a Bluetooth low-energy (BLE) heart rate
-    monitor (HRM). The tool uses system commands (hcitool and gatttool) to
-    connect to the BLE HRM and parses the output of the tools. Data is
-    interpreted according to the Bluetooth specification for HRM and saved in a
-    sqlite database for future processing. In case the connection with the BLE
-    HRM is lost, connection is restablished.
-
-    :copyright: (c) 2015 by fg1
-    :license: BSD, see LICENSE for more details
-"""
-
-__version__ = "0.1.1"
 
 import os
 import sys

@@ -42,6 +42,12 @@ class ComparePulseValues:
         self.calculate_error(topic=False, pulse=pulse)
 
     def calculate_error(self, topic, pulse):
+        """
+        Calculates the error between to pulse values coming from different topics.
+        Publishes the error percentage in ROS and writes it into a csv file.
+        :param topic: The topic of the incoming pulse value.
+        :param pulse: The pulse value.
+        """
         if topic is True:
             self.pulse = pulse.pulse
         else:
@@ -55,6 +61,10 @@ class ComparePulseValues:
             self.write_to_csv(timestamp)
 
     def publish_error(self, timestamp):
+        """
+        Publishes the error percentage into ROS.
+        :param timestamp: The timestamp of the published ROS"=Message.
+        """
         rospy.loginfo("[ComparePulseValues] Calculated error: " + str(self.error))
         msg_to_publish = Error()
         msg_to_publish.error = self.error
@@ -65,6 +75,10 @@ class ComparePulseValues:
         self.published_error_value_sequence += 1
 
     def write_to_csv(self, timestamp):
+        """
+        Publishes the error percentage into a csv file.
+        :param timestamp: The timestamp of error rate.
+        """
         topic_csv = ""
         topic_to_compare_csv = ""
 

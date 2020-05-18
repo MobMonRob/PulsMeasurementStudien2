@@ -1,7 +1,14 @@
 <?xml version="1.0"?>
 <launch>
-    <include file="$(find face_detection)/launch/idustry_camera.launch" />
+    <arg name="input_topic" default="/pylon_camera_node/image_raw" />
+    <arg name="cascade_file" default="$(find common)/config/cascade.xml" />
+    <arg name="show_image_frame" default="true" />
+    <arg name="show_processed_image" default="false" />
+    <include file="$(find pylon_camera)/launch/pylon_camera_node.launch" />
     <include file="$(find eulerian_motion_magnification)/launch/eulerian_motion_magnification.launch">
-        <arg name="topic" value="/face_detection/face" />
+        <arg name="input_topic" value="$(arg input_topic)" />
+        <arg name="show_image_frame" value="$(arg show_image_frame)" />
+        <arg name="cascade_file" value="$(arg cascade_file)" />
+        <arg name="show_processed_image" value="$(arg show_processed_image)" />
     </include>
 </launch>

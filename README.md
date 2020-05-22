@@ -74,14 +74,14 @@ If you only want to get the pulse values from the contactless head movement meth
     roslaunch pulse_head_movement webcam.launch show_plot:=true
     ```
 #### Compare pulse values with pulse values from polarH7
-For comparison, the results are always displayed in Plotjuggler, so the installation of Plotjuggler is necessary here.
+For comparison, the results are always displayed in Plotjuggler, so the installation of Plotjuggler is necessary here. This is currently only supported for the webcam.
 ```sh
 source devel/setup.bash
-# Run one of the following launch files
-# if you want to use the industry camera
-roslaunch pulse_head_movement compare_industry_camera.launch
-# if you want to use the webcam
-roslaunch pulse_head_movement compare_webcam.launch
+roslaunch common compare_pulse_values.launch topic:="/pulse_chest_strap" topic_to_compare:="/pulse_head_movement"
 ```
-
-
+#### Compare pulse values with a video from the MAHNOB-HCI-Tagging-Database
+For comparison, the results are always displayed in Plotjuggler, so the installation of Plotjuggler is necessary here. This is currently only supported for the webcam.
+```sh
+source devel/setup.bash
+roslaunch common compare_pulse_values.launch topic:="/ecg" topic_to_compare:="/pulse_head_movement" video_file:="<path_to_video_file>" bdf_file="<path_to_bdf_file>"
+```

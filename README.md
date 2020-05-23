@@ -85,3 +85,43 @@ For comparison, the results are always displayed in Plotjuggler, so the installa
 source devel/setup.bash
 roslaunch common compare_pulse_values.launch topic:="/ecg" topic_to_compare:="/pulse_head_movement" video_file:="<path_to_video_file>" bdf_file="<path_to_bdf_file>"
 ```
+## Measure Pulse with Eulerian Motion Magnification (Changing Colour Intensity)
+The pulse can be measured by amplifying and filtering subtle colour changes in the face. This method is inspired by the Eulerian Motion Magnification from http://people.csail.mit.edu/mrub/papers/vidmag.pdf.
+
+### Install
+Install PlotJuggler as mentioned above.
+
+### Run
+This method can be run similarly to the head movement method:
+
+#### Display pulse values only 
+Only displaying the values from Eulerian Motion Magnification:
+Print the pulse values to the console:
+    ```sh
+    source devel/setup.bash
+    # Run one of the following launch files
+    # if you want to use the industry camera
+    roslaunch eulerian_motion_magnification industry_camera.launch
+    # if you want to use the webcam
+    roslaunch eulerian_motion_magnification webcam.launch
+    ```
+If you want to display the values in PlotJuggler, launch PlotJuggler and subscribe to topic eulerian_motion_magnification/pulse
+
+#### Compare pulse values with pulse values from polarH7
+```sh
+source devel/setup.bash
+roslaunch common compare_pulse_values.launch topic:="/pulse_chest_strap" topic_to_compare:="/eulerian_motion_magnification"
+```
+
+#### Compare pulse values with a video from the MAHNOB-HCI-Tagging-Database
+```sh
+source devel/setup.bash
+roslaunch common compare_pulse_values.launch topic:="/ecg" topic_to_compare:="/eulerian_motion_magnification" video_file:="<path_to_video_file>" bdf_file="<path_to_bdf_file>"
+```
+
+#### Show processed image
+If you want to display the processed image, set property in launch/eulerian_motion_magnification.launch to:
+```sh
+<arg name="show_processed_image" default="true" />
+```
+otherwise set false.

@@ -12,17 +12,17 @@ To reach this approach, the repository contains different modules:
 
 The usage of the individual packages is described in the following sections.
 
-The project is implemented in Python 2.7. and uses ROS Melodic. Supported OS is Ubuntu.<br/>
-For the installation of ROS, see http://wiki.ros.org/melodic/Installation/Ubuntu
-
 ## Installation
+The project is implemented in Python 2.7. and uses ROS Melodic. 
+
 ### Ubuntu
-ROS recommends using ubuntu 18.04, which you can find here http://releases.ubuntu.com/18.04.4/.
+ROS recommends using Ubuntu 18.04, which you can find here http://releases.ubuntu.com/18.04.4/.
 
 ### ROS
-For the installation of ROS Melodic, visit http://wiki.ros.org/melodic/Installation/Ubuntu.
+For the installation of ROS Melodic, see http://wiki.ros.org/melodic/Installation/Ubuntu.
 
 ### Project
+Clone the repository with it's submodules and run catkin_make in order to install project.
 ```sh
 git clone --recurse-submodules -j8 https://github.com/MobMonRob/PulsMeasurementStudien2.git
 cd PulsMeasurementStudien2
@@ -115,7 +115,7 @@ roslaunch eulerian_motion_magnification industry_camera.launch
 # if you want to use the webcam
 roslaunch eulerian_motion_magnification webcam.launch
 ```
-If you want to display the values in PlotJuggler, launch PlotJuggler and subscribe to topic eulerian_motion_magnification
+If you want to display the values in PlotJuggler, launch PlotJuggler and subscribe to topic ```eulerian_motion_magnification```
 
 #### Compare pulse values with pulse values from polarH7
 ```sh
@@ -149,7 +149,7 @@ roslaunch legacy_measurement industry_camera.launch
 # if you want to use the webcam
 roslaunch legacy_measurement webcam.launch
 ```
-If you want to display the values in PlotJuggler, launch PlotJuggler and subscribe to topic legacy_measurement
+If you want to display the values in PlotJuggler, launch PlotJuggler and subscribe to topic ```legacy_measurement```
 
 #### Compare pulse values with pulse values from polarH7
 ```sh

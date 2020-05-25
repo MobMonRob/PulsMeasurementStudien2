@@ -22,7 +22,7 @@ ROS recommends using Ubuntu 18.04, which you can find here http://releases.ubunt
 For the installation of ROS Melodic, see http://wiki.ros.org/melodic/Installation/Ubuntu.
 
 ### Project
-Clone the repository with it's submodules and run catkin_make in order to install project.
+Clone the repository with it's submodules and run catkin_make:
 ```sh
 git clone --recurse-submodules -j8 https://github.com/MobMonRob/PulsMeasurementStudien2.git
 cd PulsMeasurementStudien2

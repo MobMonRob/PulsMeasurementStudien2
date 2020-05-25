@@ -6,4 +6,4 @@
 	url = https://github.com/dragandbot/dragandbot_common.git
 [submodule "src/video_stream_opencv"]
 	path = src/video_stream_opencv
-	url = git@github.com:ros-drivers/video_stream_opencv.git
+	url = https://github.com/ros-drivers/video_stream_opencv.git

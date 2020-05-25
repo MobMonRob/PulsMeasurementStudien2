@@ -16,43 +16,55 @@ The project is implemented in Python 2.7. and uses ROS Melodic. Supported OS is 
 For the installation of ROS, see http://wiki.ros.org/melodic/Installation/Ubuntu
 
 ## Installation
+### Ubuntu
+ROS recommends using ubuntu 18.04, which you can find here http://releases.ubuntu.com/18.04.4/.
 
+### ROS
+For the installation of ROS Melodic, visit http://wiki.ros.org/melodic/Installation/Ubuntu.
+
+### Project
 ```sh
-git clone --recurse-submodules -j8 git@github.com:MobMonRob/PulsMeasurementStudien2.git
+git clone --recurse-submodules -j8 https://github.com/MobMonRob/PulsMeasurementStudien2.git
 cd PulsMeasurementStudien2
 catkin_make
 ```
+Note: In order to make catkin_make succeed, you need to have pylon installed on the computer (see next step).  
+Alternatively you can delete the src/pylon-ros-camera directory, if you don't need the industry camera.
 
-If you want to use the industry camera, you have to install the following ros dependencies:
+All python dependencies can be found in src/requirements.txt. Run the following in order to install them:
+```sh
+pip install -r src/requirements.txt
+```
+
+### Industry Camera Driver
+Download and install the pylon driver https://www.baslerweb.com/de/vertrieb-support/downloads/downloads-software/.
+After successfully installing pylon, you need to run the following in order to install some ROS dependencies:
 
 ```sh
 sudo sh -c 'echo "yaml https://raw.githubusercontent.com/basler/pylon-ros-camera/master/pylon_camera/rosdep/pylon_sdk.yaml" > /etc/ros/rosdep/sources.list.d/30-pylon_camera.list' && rosdep update && sudo rosdep install --from-paths . --ignore-src --rosdistro=$ROS_DISTRO -y
 ```
+For more information visit https://github.com/basler/pylon-ros-camera.
 
-## Face Detection
-
-You can use either the pylon-ros-camera, the video_stream_opencv package or a video file to provide image data for the face detection.
+### PlotJuggler
+If you want to display the output as graph, you need to install PlotJuggler.
+```sh
+sudo apt-get install ros-melodic-plotjuggler
+```
+If that does not work on your system, see https://github.com/facontidavide/PlotJuggler for other installation possibilities.  
+If you don't want  to install PlotJuggler you can also just print the results to the console.
 
 ## Measure Pulse from Head movement
 
 You can measure the pulse from your head movement by using the pulse_head_movement package.<br/>
 The method is inspired by http://people.csail.mit.edu/balakg/pulsefromheadmotion.html
 
-### Install
-All python dependencies can be found in pulse_head_movement/requirements.txt
-
-Furthermore if you want to display the output as graph, you need to install PlotJuggler.<br/>
-For installation run 
-```sh
-sudo apt-get install ros-melodic-plotjuggler
-```
-If that does not work on your system, see https://github.com/facontidavide/PlotJuggler for other installation possibilities.<br/>
-If you don't want  to install PlotJuggler you can also just print the results to the console.
 ### Run
-There are two ways to execute the measurement:
+There are three ways to execute the measurement:
 1. Only display the measured values of the contactless method of head movement
-2. Compare the values from the contacless method with a ground truth from the polarH7 chest strap. 
+2. Compare the values from the contactless method with a ground truth from the polarH7 chest strap. 
 The pulse value from the polarH7 is measured in the pulse_chest_strap package.
+3. Compare the values from the contactless method with a ground truth from the MAHNOB HCI Tagging Database.
+
 #### Display pulse values only 
 If you only want to get the pulse values from the contactless head movement method, you have two possibilities:
 1. Print the pulse values to the console:
@@ -79,33 +91,31 @@ For comparison, the results are always displayed in Plotjuggler, so the installa
 source devel/setup.bash
 roslaunch common compare_pulse_values.launch topic:="/pulse_chest_strap" topic_to_compare:="/pulse_head_movement"
 ```
-#### Compare pulse values with a video from the MAHNOB-HCI-Tagging-Database
+#### Compare pulse values with a video from the MAHNOB HCI Tagging Database
 For comparison, the results are always displayed in Plotjuggler, so the installation of Plotjuggler is necessary here. This is currently only supported for the webcam.
 ```sh
 source devel/setup.bash
 roslaunch common compare_pulse_values.launch topic:="/ecg" topic_to_compare:="/pulse_head_movement" video_file:="<path_to_video_file>" bdf_file="<path_to_bdf_file>"
 ```
-## Measure Pulse with Eulerian Motion Magnification (Changing Colour Intensity)
-The pulse can be measured by amplifying and filtering subtle colour changes in the face. This method is inspired by the Eulerian Motion Magnification from http://people.csail.mit.edu/mrub/papers/vidmag.pdf.
 
-### Install
-Install PlotJuggler as mentioned above.
+## Measure Pulse with Eulerian Motion Magnification (Changing Colour Intensity)
+
+The pulse can be measured by amplifying and filtering subtle colour changes in the face. This method is inspired by the Eulerian Motion Magnification from http://people.csail.mit.edu/mrub/papers/vidmag.pdf.
 
 ### Run
 This method can be run similarly to the head movement method:
 
 #### Display pulse values only 
 Only displaying the values from Eulerian Motion Magnification:
-Print the pulse values to the console:
-    ```sh
-    source devel/setup.bash
-    # Run one of the following launch files
-    # if you want to use the industry camera
-    roslaunch eulerian_motion_magnification industry_camera.launch
-    # if you want to use the webcam
-    roslaunch eulerian_motion_magnification webcam.launch
-    ```
-If you want to display the values in PlotJuggler, launch PlotJuggler and subscribe to topic eulerian_motion_magnification/pulse
+```sh
+source devel/setup.bash
+# Run one of the following launch files
+# if you want to use the industry camera
+roslaunch eulerian_motion_magnification industry_camera.launch
+# if you want to use the webcam
+roslaunch eulerian_motion_magnification webcam.launch
+```
+If you want to display the values in PlotJuggler, launch PlotJuggler and subscribe to topic eulerian_motion_magnification
 
 #### Compare pulse values with pulse values from polarH7
 ```sh
@@ -113,15 +123,42 @@ source devel/setup.bash
 roslaunch common compare_pulse_values.launch topic:="/pulse_chest_strap" topic_to_compare:="/eulerian_motion_magnification"
 ```
 
-#### Compare pulse values with a video from the MAHNOB-HCI-Tagging-Database
+#### Compare pulse values with a video from the MAHNOB HCI Tagging Database
 ```sh
 source devel/setup.bash
 roslaunch common compare_pulse_values.launch topic:="/ecg" topic_to_compare:="/eulerian_motion_magnification" video_file:="<path_to_video_file>" bdf_file="<path_to_bdf_file>"
 ```
 
 #### Show processed image
-If you want to display the processed image, set property in launch/eulerian_motion_magnification.launch to:
+If you want to display the processed image, set the launch argument to ```show_processed_image:=true```, it is false by default.
+
+## Measure Pulse with the legacy method
+
+This method was implemented by another team of students (https://github.com/MobMonRob/PulsMeasurementStudien) and integrated in ROS within this repository.
+
+### Run
+This method can be run similarly to the head movement method:
+
+#### Display pulse values only 
+Only displaying the values from legacy method:
 ```sh
-<arg name="show_processed_image" default="true" />
+source devel/setup.bash
+# Run one of the following launch files
+# if you want to use the industry camera
+roslaunch legacy_measurement industry_camera.launch
+# if you want to use the webcam
+roslaunch legacy_measurement webcam.launch
 ```
-otherwise set false.
+If you want to display the values in PlotJuggler, launch PlotJuggler and subscribe to topic legacy_measurement
+
+#### Compare pulse values with pulse values from polarH7
+```sh
+source devel/setup.bash
+roslaunch common compare_pulse_values.launch topic:="/pulse_chest_strap" topic_to_compare:="/legacy_measurement"
+```
+
+#### Compare pulse values with a video from the MAHNOB HCI Tagging Database
+```sh
+source devel/setup.bash
+roslaunch common compare_pulse_values.launch topic:="/ecg" topic_to_compare:="/legacy_measurement" video_file:="<path_to_video_file>" bdf_file="<path_to_bdf_file>"
+```

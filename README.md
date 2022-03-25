@@ -35,6 +35,13 @@ All python dependencies can be found in src/requirements.txt. Run the following 
 ```sh
 pip install -r src/pulse_head_movement/requirements.txt
 ```
+Keep in mind: It can happen that a version defined in the requirements does not exist any more and is substituted by an api compatible newer version. In this case the versions numbers in the requirements have to be changed. 
+
+To install rospy maybe better use 
+
+```sudo apt install python-rospy
+```
+This installs the current version of rospy which should work.
 
 ### Industry Camera Driver
 Download and install the pylon driver https://www.baslerweb.com/de/vertrieb-support/downloads/downloads-software/.

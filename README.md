@@ -33,7 +33,7 @@ Alternatively you can delete the src/pylon-ros-camera directory, if you don't ne
 
 All python dependencies can be found in src/requirements.txt. Run the following in order to install them:
 ```sh
-pip install -r src/requirements.txt
+pip install -r src/pulse_head_movement/requirements.txt
 ```
 
 ### Industry Camera Driver

@@ -39,7 +39,8 @@ Keep in mind: It can happen that a version defined in the requirements does not 
 
 To install rospy maybe better use 
 
-```sudo apt install python-rospy
+```sh
+sudo apt install python-rospy
 ```
 This installs the current version of rospy which should work.
 

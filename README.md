@@ -45,7 +45,7 @@ sudo apt install python-rospy
 This installs the current version of rospy which should work.
 
 ### Industry Camera Driver
-Download and install the pylon driver https://www.baslerweb.com/de/vertrieb-support/downloads/downloads-software/.
+Download and install the pylon driver https://www.baslerweb.com/de/vertrieb-support/downloads/downloads-software/. (Version 6.3)
 After successfully installing pylon, you need to run the following in order to install some ROS dependencies:
 
 ```sh
